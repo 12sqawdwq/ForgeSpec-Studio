@@ -32,7 +32,14 @@ def validate_spec(spec: AssemblySpec) -> dict[str, Any]:
     }
 
 
-def validate_export(compound: cq.Shape, spec: AssemblySpec, stl_path: Path, json_path: Path, step_path: Path | None = None) -> dict[str, Any]:
+def validate_export(
+    compound: cq.Shape,
+    spec: AssemblySpec,
+    stl_path: Path,
+    json_path: Path,
+    step_path: Path | None = None,
+    source_path: Path | None = None,
+) -> dict[str, Any]:
     bbox = compound.BoundingBox()
     summary = validate_spec(spec)
     export_warnings = list(summary["warnings"])
@@ -42,6 +49,8 @@ def validate_export(compound: cq.Shape, spec: AssemblySpec, stl_path: Path, json
         export_warnings.append("JSON export missing or empty.")
     if step_path is not None and (not step_path.exists() or step_path.stat().st_size <= 0):
         export_warnings.append("STEP export missing or empty.")
+    if source_path is not None and (not source_path.exists() or source_path.stat().st_size <= 0):
+        export_warnings.append("Python CAD source export missing or empty.")
     summary.update(
         {
             "bbox_mm": {
@@ -52,6 +61,7 @@ def validate_export(compound: cq.Shape, spec: AssemblySpec, stl_path: Path, json
             "stl_exists": stl_path.exists(),
             "json_exists": json_path.exists(),
             "step_exists": bool(step_path and step_path.exists()),
+            "source_exists": bool(source_path and source_path.exists()),
             "warnings": export_warnings,
             "ok": not export_warnings,
         }

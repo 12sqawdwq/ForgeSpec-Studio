@@ -9,6 +9,7 @@ from pathlib import Path
 import cadquery as cq
 
 from schemas import AssemblySpec, PartSpec
+from cad_source import render_cadquery_source
 from preview import render_stl_svg
 from validation import validate_export
 
@@ -145,6 +146,7 @@ def build_assembly(spec: AssemblySpec) -> tuple[Path, Path, dict]:
     stl_path = OUTPUT_DIR / f"{base}.stl"
     step_path = OUTPUT_DIR / f"{base}.step"
     json_path = OUTPUT_DIR / f"{base}.json"
+    source_path = OUTPUT_DIR / f"{base}.py"
     preview_path = OUTPUT_DIR / f"{base}.svg"
 
     compound = None
@@ -173,12 +175,14 @@ def build_assembly(spec: AssemblySpec) -> tuple[Path, Path, dict]:
     cq.exporters.export(compound, str(step_path))
     cq.exporters.export(compound, str(stl_path), tolerance=0.05, angularTolerance=0.1)
     render_stl_svg(stl_path, preview_path)
+    source_path.write_text(render_cadquery_source(spec), encoding="utf-8")
     json_path.write_text(json.dumps(spec.model_dump(), indent=2), encoding="utf-8")
-    validation = validate_export(compound, spec, stl_path, json_path, step_path)
+    validation = validate_export(compound, spec, stl_path, json_path, step_path, source_path)
     return stl_path, json_path, {
         "parts": part_summaries,
         "stl": stl_path.name,
         "step": step_path.name,
+        "source": source_path.name,
         "config": json_path.name,
         "preview": preview_path.name,
         "validation": validation,

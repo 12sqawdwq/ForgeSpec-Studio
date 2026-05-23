@@ -353,7 +353,8 @@
         loadStl: '加载最终 STL',
         downloadStl: '下载 STL',
         downloadStep: '下载 STEP',
-        downloadJson: '下载 JSON'
+        downloadJson: '下载 JSON',
+        downloadSource: '下载 Python'
       },
       en: {
         title: 'ForgeSpec Studio',
@@ -382,7 +383,8 @@
         loadStl: 'Load Final STL',
         downloadStl: 'Download STL',
         downloadStep: 'Download STEP',
-        downloadJson: 'Download JSON'
+        downloadJson: 'Download JSON',
+        downloadSource: 'Download Python'
       }
     };
 
@@ -559,6 +561,7 @@
       downloads.innerHTML = '';
       addDownload(t('downloadStl'), data.stl_url);
       if (data.step_url) addDownload(t('downloadStep'), data.step_url);
+      if (data.source_url) addDownload(t('downloadSource'), data.source_url);
       addDownload(t('downloadJson'), data.config_url);
       const loadButton = document.createElement('button');
       loadButton.textContent = t('loadStl');
