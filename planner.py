@@ -5,7 +5,7 @@ from typing import Any
 
 from brief import CadBrief, build_brief
 from intent import TypedIntent, classify_intent
-from standard_library import fastener_spec_from_prompt, looks_like_fastener
+from standard_library import catalog_parts_for_prompt, fastener_spec_from_prompt, looks_like_fastener
 
 
 def _slug(value: str) -> str:
@@ -132,6 +132,11 @@ def _single_part_from_intent(brief: CadBrief, intent: TypedIntent) -> dict[str, 
 
 
 def _assembly_from_parts(brief: CadBrief, intent: TypedIntent, parts: list[dict[str, Any]], source: str) -> dict[str, Any]:
+    standard_mentions = list(intent.standard_part_mentions)
+    for part in parts:
+        standard = part.get("standard")
+        if standard and standard not in standard_mentions:
+            standard_mentions.append(standard)
     return {
         "project_name": _slug(intent.main_object)[:64] or "planned_cad_model",
         "unit": "mm",
@@ -141,7 +146,7 @@ def _assembly_from_parts(brief: CadBrief, intent: TypedIntent, parts: list[dict[
             "scope": intent.scope,
             "requested_output": intent.requested_output,
             "functional_components": intent.components,
-            "standard_part_mentions": intent.standard_part_mentions,
+            "standard_part_mentions": standard_mentions,
             "assumptions": intent.assumptions + [f"Planning source: {source}"],
         },
         "parts": parts,
@@ -159,6 +164,8 @@ def plan_from_brief(brief: CadBrief, intent: TypedIntent) -> dict[str, Any]:
     if intent.scope in {"multi_part_assembly", "robot_description"}:
         components = intent.components or [intent.main_object, "mounting interface", "functional feature"]
         parts = [_planned_component(component, index) for index, component in enumerate(components)]
+        catalog_parts = catalog_parts_for_prompt(brief.prompt, components, index_base=len(parts))
+        parts.extend(catalog_parts)
         return _assembly_from_parts(brief, intent, parts, "planner:multi_part")
 
     return _single_part_from_intent(brief, intent)
@@ -177,6 +184,10 @@ def plan_from_candidate(prompt: str, candidate: dict[str, Any] | None) -> tuple[
         candidate_scope = ((candidate.get("decomposition") or {}).get("scope") or "").lower()
         candidate_parts = candidate.get("parts") or []
         if candidate_parts and candidate_scope not in {"standard_part"}:
+            if intent.scope in {"multi_part_assembly", "robot_description"}:
+                existing_names = {str(part.get("name", "")) for part in candidate_parts}
+                catalog_parts = catalog_parts_for_prompt(prompt, intent.components, index_base=len(candidate_parts))
+                candidate_parts.extend(part for part in catalog_parts if part.get("name") not in existing_names)
             candidate.setdefault("decomposition", {})
             candidate["decomposition"].setdefault("main_object", intent.main_object)
             candidate["decomposition"].setdefault("scope", intent.scope)

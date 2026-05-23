@@ -17,11 +17,16 @@ def validate_spec(spec: AssemblySpec) -> dict[str, Any]:
     if spec.decomposition.scope != "standard_part" and spec.parts and all((part.geometry_kind or part.kind) == "screw" for part in spec.parts):
         warnings.append("Non-standard-part request produced only fasteners.")
     standard_refs = [part.standard for part in spec.parts if part.standard]
+    taxonomy_counts: dict[str, int] = {}
+    for part in spec.parts:
+        taxonomy = part.taxonomy or part.family or "unclassified"
+        taxonomy_counts[taxonomy] = taxonomy_counts.get(taxonomy, 0) + 1
     return {
         "part_count": len(spec.parts),
         "scope": spec.decomposition.scope,
         "main_object": spec.decomposition.main_object,
         "standard_refs": standard_refs,
+        "taxonomy_counts": taxonomy_counts,
         "warnings": warnings,
         "ok": not warnings,
     }

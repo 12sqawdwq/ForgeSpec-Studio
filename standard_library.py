@@ -9,6 +9,7 @@ from typing import Any
 
 STANDARD_DIR = Path(__file__).with_name("standards")
 FASTENER_DB = STANDARD_DIR / "fasteners.json"
+CATALOG_DB = STANDARD_DIR / "catalog.json"
 
 FASTENER_TERMS = (
     "bolt",
@@ -48,6 +49,23 @@ ASSEMBLY_CONTEXT_TERMS = (
     "\u7ec4\u6210",
 )
 
+ROBOT_CONTEXT_TERMS = (
+    "robot",
+    "robotic",
+    "mechanical arm",
+    "manipulator",
+    "joint",
+    "rotary",
+    "\u673a\u68b0\u81c2",
+    "\u516d\u8f74",
+    "\u5173\u8282",
+    "\u65cb\u8f6c",
+)
+
+COUPLING_CONTEXT_TERMS = ("coupling", "shaft coupling", "\u8054\u8f74\u5668")
+MOTOR_CONTEXT_TERMS = ("motor", "stepper", "servo", "\u7535\u673a", "\u6b65\u8fdb", "\u4f3a\u670d")
+SENSOR_CONTEXT_TERMS = ("sensor", "proximity", "limit switch", "\u4f20\u611f\u5668", "\u63a5\u8fd1\u5f00\u5173", "\u9650\u4f4d")
+
 
 def is_larger_assembly_request(prompt: str) -> bool:
     return _has_assembly_context(prompt)
@@ -55,6 +73,136 @@ def is_larger_assembly_request(prompt: str) -> bool:
 
 def _load_fasteners() -> dict[str, Any]:
     return json.loads(FASTENER_DB.read_text(encoding="utf-8"))
+
+
+def _load_catalog() -> dict[str, Any]:
+    if not CATALOG_DB.exists():
+        return {"version": "0", "records": []}
+    return json.loads(CATALOG_DB.read_text(encoding="utf-8"))
+
+
+def catalog_records() -> list[dict[str, Any]]:
+    return [copy.deepcopy(record) for record in _load_catalog().get("records", [])]
+
+
+def _record_text(record: dict[str, Any]) -> str:
+    fields = [
+        record.get("id"),
+        record.get("name"),
+        record.get("taxonomy"),
+        record.get("category"),
+        record.get("type_code"),
+        record.get("standard"),
+        record.get("kind"),
+        *(record.get("keywords") or []),
+    ]
+    return " ".join(str(field) for field in fields if field).lower()
+
+
+def _matches_any(text: str, terms: tuple[str, ...]) -> bool:
+    lower = text.lower()
+    return any(term.lower() in lower for term in terms)
+
+
+def find_catalog_records(query: str, limit: int = 6, taxonomy: str | None = None, category: str | None = None) -> list[dict[str, Any]]:
+    lower = query.lower()
+    ranked: list[tuple[int, dict[str, Any]]] = []
+    for record in catalog_records():
+        if taxonomy and record.get("taxonomy") != taxonomy:
+            continue
+        if category and record.get("category") != category:
+            continue
+        haystack = _record_text(record)
+        score = 0
+        for token in re.findall(r"[a-zA-Z0-9_]+|[\u4e00-\u9fff]+", lower):
+            if not token:
+                continue
+            if token == str(record.get("type_code", "")).lower() or token == str(record.get("category", "")).lower():
+                score += 10
+            elif token in haystack:
+                score += 3
+        if lower and lower in haystack:
+            score += 8
+        if score:
+            ranked.append((score, record))
+    ranked.sort(key=lambda item: item[0], reverse=True)
+    return [record for _, record in ranked[:limit]]
+
+
+def catalog_part_from_record(record: dict[str, Any], index: int = 0, position: list[float] | None = None) -> dict[str, Any]:
+    part = {
+        "name": record["name"],
+        "kind": record.get("kind", "generic"),
+        "geometry_kind": record.get("geometry_kind"),
+        "family": record.get("taxonomy"),
+        "taxonomy": record.get("taxonomy"),
+        "category": record.get("category"),
+        "type_code": record.get("type_code"),
+        "standard": record.get("standard"),
+        "variant": record.get("category"),
+        "material": record.get("material", "catalog material"),
+        "outer_diameter_mm": record.get("outer_diameter_mm"),
+        "inner_diameter_mm": record.get("inner_diameter_mm"),
+        "length_mm": record.get("length_mm"),
+        "width_mm": record.get("width_mm"),
+        "height_mm": record.get("height_mm"),
+        "thickness_mm": record.get("thickness_mm"),
+        "holes": [],
+        "chamfers": [{"edge": "all", "size_mm": 0.3, "angle_deg": 45}],
+        "fillets": [{"edge": "all", "radius_mm": 0.4}],
+        "tolerance": {"plus_mm": 0.05, "minus_mm": 0.05, "note": "Catalog default tolerance; verify with supplier table before manufacturing."},
+        "position_mm": position if position is not None else [index * 55.0, -95.0, 0.0],
+        "notes": [
+            f"Catalog part id: {record.get('id')}.",
+            "Inserted by standard part catalog; geometry is simplified for assembly planning.",
+        ],
+        "standard_dimensions": {key: value for key, value in record.items() if key.endswith("_mm") or key in {"id", "type_code", "standard"}},
+    }
+    return {key: value for key, value in part.items() if value is not None}
+
+
+def _catalog_record_by_id(record_id: str) -> dict[str, Any] | None:
+    for record in catalog_records():
+        if record.get("id") == record_id:
+            return record
+    return None
+
+
+def _add_catalog_id(record_ids: list[str], record_id: str) -> None:
+    if record_id not in record_ids:
+        record_ids.append(record_id)
+
+
+def catalog_parts_for_prompt(prompt: str, components: list[str] | None = None, index_base: int = 0) -> list[dict[str, Any]]:
+    """Return supporting catalog parts for assemblies without replacing the main object."""
+    text = " ".join([prompt, *(components or [])])
+    record_ids: list[str] = []
+
+    if _matches_any(text, ROBOT_CONTEXT_TERMS):
+        for record_id in ("bearing_6001", "bearing_6002", "dowel_pin_6x24_iso8734", "circlip_shaft_12"):
+            _add_catalog_id(record_ids, record_id)
+
+    if re.search(r"\bM\s*6\b", text, re.IGNORECASE):
+        for record_id in ("washer_plain_m6_iso7089", "hex_nut_m6_iso4032"):
+            _add_catalog_id(record_ids, record_id)
+    if re.search(r"\bM\s*8\b", text, re.IGNORECASE):
+        for record_id in ("washer_plain_m8_iso7089", "hex_nut_m8_iso4032"):
+            _add_catalog_id(record_ids, record_id)
+
+    if _matches_any(text, COUPLING_CONTEXT_TERMS):
+        for record_id in ("flexible_coupling_12_12", "parallel_key_6x6x28"):
+            _add_catalog_id(record_ids, record_id)
+    if _matches_any(text, MOTOR_CONTEXT_TERMS):
+        _add_catalog_id(record_ids, "nema17_motor_placeholder")
+    if _matches_any(text, SENSOR_CONTEXT_TERMS):
+        _add_catalog_id(record_ids, "proximity_sensor_m12_placeholder")
+
+    parts: list[dict[str, Any]] = []
+    for offset, record_id in enumerate(record_ids):
+        record = _catalog_record_by_id(record_id)
+        if record:
+            parts.append(catalog_part_from_record(record, index_base + offset, [offset * 55.0, -95.0, 0.0]))
+    return parts
 
 
 def _has_fastener_term(text: str) -> bool:
