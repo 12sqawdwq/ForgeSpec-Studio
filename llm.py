@@ -7,6 +7,7 @@ import re
 import httpx
 from dotenv import load_dotenv
 
+from standard_library import expand_standard_parts, looks_like_fastener
 from templates import fallback_spec
 
 load_dotenv()
@@ -21,7 +22,16 @@ Return only JSON matching this schema:
   "parts": [
     {
       "name": "string",
-      "kind": "flange|shaft|spacer|bracket",
+      "kind": "flange|shaft|spacer|bracket|screw",
+      "family": "fastener|rotary|structural|spacer|null",
+      "standard": "ISO/GB/DIN/JIS reference or null",
+      "variant": "specific part variant or null",
+      "nominal_thread": "M3|M4|M5|M6|M8|M10|M12|M16 or null",
+      "thread_pitch_mm": number|null,
+      "thread_length_mm": number|null,
+      "head_style": "hex|cylindrical_socket|countersunk|button|null",
+      "drive_style": "external_hex|hex_socket|phillips|slot|null",
+      "grade": "material/property grade or null",
       "material": "string",
       "outer_diameter_mm": number|null,
       "inner_diameter_mm": number|null,
@@ -34,12 +44,18 @@ Return only JSON matching this schema:
       "fillets": [{"edge": "front|back|both|all", "radius_mm": number}],
       "tolerance": {"plus_mm": number, "minus_mm": number, "note": "string"},
       "position_mm": [number, number, number],
-      "notes": ["string"]
+      "notes": ["string"],
+      "standard_dimensions": {}
     }
   ],
   "manufacturing_notes": ["string"]
 }
-Use manufacturable metric dimensions. Include tolerances, chamfers, fillets, hole details, material, and inspection notes."""
+Use manufacturable metric dimensions. Include tolerances, chamfers, fillets, hole details, material, and inspection notes.
+For standard screws, bolts, nuts, washers, pins, bearings, and other catalog parts, prefer a standards-based interpretation:
+- If the user asks only for "a standard screw/bolt", choose ISO 4017 / GB/T 5783 hex head bolt M10x50 class 8.8 unless a different type or size is specified.
+- For socket head cap screws, use ISO 4762 / GB/T 70.1.
+- Use kind "screw" for screws/bolts and fill family, standard, variant, nominal_thread, thread_pitch_mm, thread_length_mm, head_style, drive_style, and grade.
+- Do not collapse screws/bolts into plain shafts."""
 
 
 def _extract_json(text: str) -> dict:
@@ -144,8 +160,13 @@ async def _generate_with_gemini(prompt: str) -> tuple[dict, str]:
 
 async def generate_spec(prompt: str, use_gemini: bool = True) -> tuple[dict, str]:
     load_dotenv(".env", override=True)
+    if looks_like_fastener(prompt):
+        raw, standard_source = expand_standard_parts({}, prompt)
+        return raw, standard_source or "standard_library:fastener"
+
     if not use_gemini:
-        return fallback_spec(prompt), "fallback:llm_disabled"
+        raw, standard_source = expand_standard_parts(fallback_spec(prompt), prompt)
+        return raw, standard_source or "fallback:llm_disabled"
 
     providers = [
         item.strip().lower()
@@ -156,13 +177,19 @@ async def generate_spec(prompt: str, use_gemini: bool = True) -> tuple[dict, str
     for provider in providers:
         try:
             if provider == "zhipu":
-                return await _generate_with_zhipu(prompt)
+                raw, source = await _generate_with_zhipu(prompt)
+                raw, standard_source = expand_standard_parts(raw, prompt)
+                return raw, f"{source}+{standard_source}" if standard_source else source
             if provider == "gemini":
-                return await _generate_with_gemini(prompt)
+                raw, source = await _generate_with_gemini(prompt)
+                raw, standard_source = expand_standard_parts(raw, prompt)
+                return raw, f"{source}+{standard_source}" if standard_source else source
         except Exception as exc:
             errors.append(f"{provider}:{_safe_error(exc)}")
 
     if not errors:
-        return fallback_spec(prompt), "fallback:no_provider_configured"
+        raw, standard_source = expand_standard_parts(fallback_spec(prompt), prompt)
+        return raw, standard_source or "fallback:no_provider_configured"
     reason = " | ".join(errors)[-420:]
-    return fallback_spec(prompt), f"fallback:llm_error:{reason}"
+    raw, standard_source = expand_standard_parts(fallback_spec(prompt), prompt)
+    return raw, standard_source or f"fallback:llm_error:{reason}"

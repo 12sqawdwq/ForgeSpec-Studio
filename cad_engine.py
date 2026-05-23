@@ -54,8 +54,53 @@ def _add_bolt_circle(obj: cq.Workplane, part: PartSpec, thickness: float) -> cq.
     return obj
 
 
+def _hex_point_diameter(across_flats: float) -> float:
+    return 2.0 * across_flats / math.sqrt(3.0)
+
+
+def _build_screw(part: PartSpec) -> cq.Workplane:
+    diameter = part.outer_diameter_mm or 10.0
+    length = part.length_mm or 50.0
+    pitch = part.thread_pitch_mm or max(0.5, diameter * 0.15)
+    thread_length = min(part.thread_length_mm or length, length)
+    dims = part.standard_dimensions or {}
+    head_style = (part.head_style or "hex").lower()
+
+    if head_style == "cylindrical_socket":
+        head_diameter = float(dims.get("socket_head_diameter_mm") or part.width_mm or diameter * 1.6)
+        head_height = float(dims.get("socket_head_height_mm") or part.height_mm or diameter)
+        head = cq.Workplane("XY").circle(head_diameter / 2).extrude(head_height).translate((0, 0, length))
+    else:
+        across_flats = float(dims.get("hex_af_mm") or part.width_mm or diameter * 1.7)
+        head_height = float(dims.get("hex_head_height_mm") or part.height_mm or diameter * 0.65)
+        head = cq.Workplane("XY").polygon(6, _hex_point_diameter(across_flats)).extrude(head_height).translate((0, 0, length))
+
+    shank = cq.Workplane("XY").circle(diameter / 2).extrude(length)
+    obj = shank.union(head)
+
+    if part.drive_style == "hex_socket":
+        socket_af = float(dims.get("socket_size_mm") or diameter * 0.6)
+        socket_depth = min(head_height * 0.65, diameter * 0.8)
+        try:
+            obj = obj.faces(">Z").workplane().polygon(6, _hex_point_diameter(socket_af)).cutBlind(-socket_depth)
+        except Exception:
+            pass
+
+    ridge_height = min(max(pitch * 0.18, 0.12), diameter * 0.06)
+    ridge_width = min(max(pitch * 0.18, 0.10), 0.45)
+    ridge_count = min(int(thread_length / pitch), 90)
+    for index in range(ridge_count):
+        z = index * pitch + pitch * 0.35
+        ridge = cq.Workplane("XY").circle(diameter / 2 + ridge_height).extrude(ridge_width).translate((0, 0, z))
+        obj = obj.union(ridge)
+
+    return obj
+
+
 def build_part(part: PartSpec) -> cq.Workplane:
-    if part.kind == "shaft":
+    if part.kind == "screw":
+        obj = _build_screw(part)
+    elif part.kind == "shaft":
         diameter = part.outer_diameter_mm or 30
         length = part.length_mm or 60
         obj = cq.Workplane("XY").circle(diameter / 2).extrude(length)

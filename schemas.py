@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -60,7 +60,16 @@ class HolePattern(BaseModel):
 
 class PartSpec(BaseModel):
     name: str
-    kind: Literal["flange", "shaft", "spacer", "bracket"] = "flange"
+    kind: Literal["flange", "shaft", "spacer", "bracket", "screw"] = "flange"
+    family: str | None = None
+    standard: str | None = None
+    variant: str | None = None
+    nominal_thread: str | None = None
+    thread_pitch_mm: float | None = None
+    thread_length_mm: float | None = None
+    head_style: str | None = None
+    drive_style: str | None = None
+    grade: str | None = None
     material: str = "6061-T6 aluminum"
     outer_diameter_mm: float | None = None
     inner_diameter_mm: float | None = None
@@ -74,6 +83,7 @@ class PartSpec(BaseModel):
     tolerance: Tolerance = Field(default_factory=Tolerance)
     position_mm: tuple[float, float, float] = (0.0, 0.0, 0.0)
     notes: list[str] = Field(default_factory=list)
+    standard_dimensions: dict[str, Any] = Field(default_factory=dict)
 
 
 class AssemblySpec(BaseModel):

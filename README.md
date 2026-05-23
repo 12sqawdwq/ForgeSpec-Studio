@@ -12,9 +12,22 @@ mounting blocks, T-slot nuts, dowel pins, and simple precision assemblies.
 - FastAPI backend with a browser-based interactive UI.
 - Conda-managed Python environment.
 - CadQuery STL export.
+- Standards-backed part expansion for common fasteners.
 - Zhipu/BigModel and Gemini API support, with deterministic fallback templates.
 - Day/night UI themes, Chinese/English interface, sample prompts, JSON
   highlighting, progress logs, and one-click STL/JSON downloads.
+
+## Standards Library
+
+ForgeSpec Studio uses a small local standards database in `standards/` to keep
+common catalog parts deterministic. For example, a vague request such as
+`生成一个标准件螺丝` is expanded without relying on the LLM into an
+ISO 4017 / GB/T 5783 M10x50 class 8.8 hex head bolt with head dimensions,
+thread pitch, thread length, material, tolerances, and inspection notes.
+
+The first included database is `standards/fasteners.json`. It can be extended
+with more metric thread rows, screw variants, washers, nuts, pins, bearings,
+keys, and other standard mechanical components.
 
 ## Quick Start
 

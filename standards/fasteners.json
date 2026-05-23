@@ -1,0 +1,44 @@
+{
+  "defaults": {
+    "hex_head_bolt": {
+      "family": "fastener",
+      "kind": "screw",
+      "variant": "hex_head_bolt",
+      "standard": "ISO 4017 / GB/T 5783",
+      "name_template": "hex_head_bolt_{thread}x{length}",
+      "description": "Hexagon head screw/bolt with metric thread",
+      "material": "Class 8.8 carbon steel, zinc plated",
+      "grade": "8.8",
+      "head_style": "hex",
+      "drive_style": "external_hex",
+      "threaded": true,
+      "thread_length_mode": "full",
+      "chamfer_mm": 0.8
+    },
+    "socket_head_cap_screw": {
+      "family": "fastener",
+      "kind": "screw",
+      "variant": "socket_head_cap_screw",
+      "standard": "ISO 4762 / GB/T 70.1",
+      "name_template": "socket_head_cap_screw_{thread}x{length}",
+      "description": "Socket head cap screw with metric thread",
+      "material": "Class 12.9 alloy steel, black oxide",
+      "grade": "12.9",
+      "head_style": "cylindrical_socket",
+      "drive_style": "hex_socket",
+      "threaded": true,
+      "thread_length_mode": "partial",
+      "chamfer_mm": 0.5
+    }
+  },
+  "metric_threads": {
+    "M3": {"diameter_mm": 3.0, "pitch_mm": 0.5, "hex_af_mm": 5.5, "hex_head_height_mm": 2.0, "socket_head_diameter_mm": 5.5, "socket_head_height_mm": 3.0, "socket_size_mm": 2.5},
+    "M4": {"diameter_mm": 4.0, "pitch_mm": 0.7, "hex_af_mm": 7.0, "hex_head_height_mm": 2.8, "socket_head_diameter_mm": 7.0, "socket_head_height_mm": 4.0, "socket_size_mm": 3.0},
+    "M5": {"diameter_mm": 5.0, "pitch_mm": 0.8, "hex_af_mm": 8.0, "hex_head_height_mm": 3.5, "socket_head_diameter_mm": 8.5, "socket_head_height_mm": 5.0, "socket_size_mm": 4.0},
+    "M6": {"diameter_mm": 6.0, "pitch_mm": 1.0, "hex_af_mm": 10.0, "hex_head_height_mm": 4.0, "socket_head_diameter_mm": 10.0, "socket_head_height_mm": 6.0, "socket_size_mm": 5.0},
+    "M8": {"diameter_mm": 8.0, "pitch_mm": 1.25, "hex_af_mm": 13.0, "hex_head_height_mm": 5.3, "socket_head_diameter_mm": 13.0, "socket_head_height_mm": 8.0, "socket_size_mm": 6.0},
+    "M10": {"diameter_mm": 10.0, "pitch_mm": 1.5, "hex_af_mm": 17.0, "hex_head_height_mm": 6.4, "socket_head_diameter_mm": 16.0, "socket_head_height_mm": 10.0, "socket_size_mm": 8.0},
+    "M12": {"diameter_mm": 12.0, "pitch_mm": 1.75, "hex_af_mm": 19.0, "hex_head_height_mm": 7.5, "socket_head_diameter_mm": 18.0, "socket_head_height_mm": 12.0, "socket_size_mm": 10.0},
+    "M16": {"diameter_mm": 16.0, "pitch_mm": 2.0, "hex_af_mm": 24.0, "hex_head_height_mm": 10.0, "socket_head_diameter_mm": 24.0, "socket_head_height_mm": 16.0, "socket_size_mm": 14.0}
+  }
+}

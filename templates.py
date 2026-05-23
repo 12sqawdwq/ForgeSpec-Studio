@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+from standard_library import fastener_spec_from_prompt, looks_like_fastener
+
 
 def fallback_spec(prompt: str) -> dict:
     text = prompt.lower()
+    if looks_like_fastener(prompt):
+        return fastener_spec_from_prompt(prompt)
+
     if "bracket" in text or "支架" in text:
         return {
             "project_name": "precision_mounting_bracket",

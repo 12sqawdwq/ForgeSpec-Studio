@@ -11,7 +11,7 @@ from llm import generate_spec
 from schemas import AssemblySpec, BuildRequest, GenerateRequest
 
 
-app = FastAPI(title="GenCAD Gemini Studio", version="0.1.0")
+app = FastAPI(title="ForgeSpec Studio", version="0.2.0")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/outputs", StaticFiles(directory="outputs"), name="outputs")
 
