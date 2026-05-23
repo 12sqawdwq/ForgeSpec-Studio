@@ -906,7 +906,7 @@
       return group;
     }
     function buildPartMesh(part, index) {
-      const kind = part.kind || 'flange';
+      const kind = part.geometry_kind || part.kind || 'flange';
       const pos = part.position_mm || [0, 0, 0];
       const group = new THREE.Group();
       const mat = materialFor(part, index);

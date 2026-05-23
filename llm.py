@@ -31,8 +31,12 @@ Return only JSON matching this schema:
   "parts": [
     {
       "name": "string",
-      "kind": "flange|shaft|spacer|bracket|screw",
+      "kind": "open engineering type, e.g. plate|block|bracket|flange|shaft|screw|bearing_housing|sensor_mount",
+      "geometry_kind": "flange|shaft|spacer|bracket|screw|plate|block|generic",
       "family": "fastener|rotary|structural|spacer|null",
+      "taxonomy": "broad library namespace such as fastener|structural|electrical_component|pneumatic|bearing|null",
+      "category": "catalog category or null",
+      "type_code": "stable catalog/type identifier or null",
       "standard": "ISO/GB/DIN/JIS reference or null",
       "variant": "specific part variant or null",
       "nominal_thread": "M3|M4|M5|M6|M8|M10|M12|M16 or null",
@@ -66,8 +70,9 @@ General reasoning policy:
 3. If the main target itself is a standard/catalog part, set decomposition.scope="standard_part" and use the closest ISO/GB/DIN/JIS family.
 4. For standard screws/bolts as the main target, choose ISO 4017 / GB/T 5783 hex head bolt M10x50 class 8.8 unless a different type or size is specified.
 5. For socket head cap screws, use ISO 4762 / GB/T 70.1.
-6. Use kind "screw" only for actual screw/bolt parts, not for assemblies that merely mention fasteners.
-7. When the request is broad, make conservative concept-level geometry with explicit assumptions instead of pretending it is production-ready."""
+6. Use geometry_kind "screw" only for actual screw/bolt parts, not for assemblies that merely mention fasteners.
+7. Keep kind open for engineering taxonomy. If unsure how to model a component, set kind to the engineering item name and geometry_kind to "generic".
+8. When the request is broad, make conservative concept-level geometry with explicit assumptions instead of pretending it is production-ready."""
 
 
 def _extract_json(text: str) -> dict:

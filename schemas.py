@@ -2,7 +2,30 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+
+EXECUTABLE_KINDS = {"flange", "shaft", "spacer", "bracket", "screw", "plate", "block", "generic"}
+KIND_ALIASES = {
+    "mounting_plate": "plate",
+    "base_plate": "plate",
+    "end_plate": "plate",
+    "cover_plate": "plate",
+    "mounting_block": "block",
+    "bearing_block": "block",
+    "bearing_housing": "flange",
+    "joint_housing": "flange",
+    "link": "bracket",
+    "arm_link": "bracket",
+    "beam": "bracket",
+    "bolt": "screw",
+    "fastener": "screw",
+    "cap_screw": "screw",
+    "dowel_pin": "shaft",
+    "pin": "shaft",
+    "washer": "spacer",
+    "nut": "spacer",
+}
 
 
 class Tolerance(BaseModel):
@@ -60,8 +83,12 @@ class HolePattern(BaseModel):
 
 class PartSpec(BaseModel):
     name: str
-    kind: Literal["flange", "shaft", "spacer", "bracket", "screw"] = "flange"
+    kind: str = "generic"
+    geometry_kind: str | None = None
     family: str | None = None
+    taxonomy: str | None = None
+    category: str | None = None
+    type_code: str | None = None
     standard: str | None = None
     variant: str | None = None
     nominal_thread: str | None = None
@@ -84,6 +111,28 @@ class PartSpec(BaseModel):
     position_mm: tuple[float, float, float] = (0.0, 0.0, 0.0)
     notes: list[str] = Field(default_factory=list)
     standard_dimensions: dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("kind", "geometry_kind", mode="before")
+    @classmethod
+    def normalize_kind_text(cls, value: object) -> str | None:
+        if value is None:
+            return None
+        text = str(value).strip().lower().replace("-", "_").replace(" ", "_")
+        return KIND_ALIASES.get(text, text)
+
+    @model_validator(mode="after")
+    def set_geometry_kind(self) -> "PartSpec":
+        raw_kind = (self.kind or "generic").strip().lower()
+        executable = KIND_ALIASES.get(raw_kind, raw_kind)
+        if executable not in EXECUTABLE_KINDS:
+            executable = "generic"
+        self.geometry_kind = self.geometry_kind or executable
+        if self.geometry_kind not in EXECUTABLE_KINDS:
+            self.geometry_kind = KIND_ALIASES.get(self.geometry_kind, "generic")
+        self.taxonomy = self.taxonomy or self.family
+        self.category = self.category or self.variant or raw_kind
+        self.type_code = self.type_code or raw_kind
+        return self
 
 
 class TaskDecomposition(BaseModel):

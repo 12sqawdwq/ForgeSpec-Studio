@@ -17,6 +17,9 @@ def _base_part(name: str, index: int) -> dict[str, Any]:
     return {
         "name": _slug(name),
         "family": "structural",
+        "taxonomy": "structural",
+        "category": "adaptive_component",
+        "type_code": "adaptive_component",
         "standard": None,
         "variant": "planned_component",
         "material": "6061-T6 aluminum",
@@ -42,6 +45,7 @@ def _planned_component(name: str, index: int) -> dict[str, Any]:
     if any(token in lower for token in ["flange", "\u6cd5\u5170", "joint", "\u5173\u8282", "housing", "\u5ea7"]):
         return base | {
             "kind": "flange",
+            "geometry_kind": "flange",
             "family": "rotary" if any(token in lower for token in ["joint", "\u5173\u8282"]) else "structural",
             "outer_diameter_mm": 90,
             "inner_diameter_mm": 32,
@@ -51,6 +55,7 @@ def _planned_component(name: str, index: int) -> dict[str, Any]:
     if any(token in lower for token in ["shaft", "\u8f74", "pin", "\u9500"]):
         return base | {
             "kind": "shaft",
+            "geometry_kind": "shaft",
             "family": "rotary",
             "outer_diameter_mm": 24,
             "length_mm": 95,
@@ -59,6 +64,7 @@ def _planned_component(name: str, index: int) -> dict[str, Any]:
     if any(token in lower for token in ["link", "arm", "bar", "\u81c2\u6746", "\u8fde\u6746", "\u6746"]):
         return base | {
             "kind": "bracket",
+            "geometry_kind": "bracket",
             "length_mm": 160,
             "width_mm": 42,
             "height_mm": 32,
@@ -67,7 +73,8 @@ def _planned_component(name: str, index: int) -> dict[str, Any]:
         }
     if any(token in lower for token in ["plate", "\u677f", "block", "\u5757"]):
         return base | {
-            "kind": "bracket",
+            "kind": "plate" if any(token in lower for token in ["plate", "\u677f"]) else "block",
+            "geometry_kind": "plate" if any(token in lower for token in ["plate", "\u677f"]) else "block",
             "length_mm": 100,
             "width_mm": 60,
             "height_mm": 20,
@@ -76,6 +83,7 @@ def _planned_component(name: str, index: int) -> dict[str, Any]:
         }
     return base | {
         "kind": "bracket",
+        "geometry_kind": "bracket",
         "length_mm": 90,
         "width_mm": 60,
         "height_mm": 18,
@@ -96,6 +104,7 @@ def _single_part_from_intent(brief: CadBrief, intent: TypedIntent) -> dict[str, 
         part = {
             "name": "planned_flange",
             "kind": "flange",
+            "geometry_kind": "flange",
             "family": "rotary",
             "standard": None,
             "variant": "planned_flange",

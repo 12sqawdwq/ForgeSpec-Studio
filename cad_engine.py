@@ -99,25 +99,29 @@ def _build_screw(part: PartSpec) -> cq.Workplane:
 
 
 def build_part(part: PartSpec) -> cq.Workplane:
-    if part.kind == "screw":
+    geometry_kind = part.geometry_kind or part.kind
+    if geometry_kind == "screw":
         obj = _build_screw(part)
-    elif part.kind == "shaft":
+    elif geometry_kind == "shaft":
         diameter = part.outer_diameter_mm or 30
         length = part.length_mm or 60
         obj = cq.Workplane("XY").circle(diameter / 2).extrude(length)
-    elif part.kind == "spacer":
+    elif geometry_kind == "spacer":
         outer = part.outer_diameter_mm or 60
         inner = part.inner_diameter_mm or 30
         length = part.length_mm or part.thickness_mm or 20
         obj = cq.Workplane("XY").circle(outer / 2).circle(inner / 2).extrude(length)
-    elif part.kind == "bracket":
+    elif geometry_kind in {"bracket", "plate", "block", "generic"}:
         width = part.width_mm or 100
         height = part.height_mm or 70
         thickness = part.thickness_mm or 10
         leg = part.length_mm or 60
-        base = cq.Workplane("XY").box(width, leg, thickness, centered=(True, True, False))
-        upright = cq.Workplane("XZ").box(width, height, thickness, centered=(True, False, False)).translate((0, -leg / 2 + thickness / 2, thickness / 2))
-        obj = base.union(upright)
+        if geometry_kind in {"plate", "block"}:
+            obj = cq.Workplane("XY").box(width, leg, height or thickness, centered=(True, True, False))
+        else:
+            base = cq.Workplane("XY").box(width, leg, thickness, centered=(True, True, False))
+            upright = cq.Workplane("XZ").box(width, height, thickness, centered=(True, False, False)).translate((0, -leg / 2 + thickness / 2, thickness / 2))
+            obj = base.union(upright)
         obj = _add_bolt_circle(obj, part, thickness)
     else:
         outer = part.outer_diameter_mm or 100
@@ -153,6 +157,10 @@ def build_assembly(spec: AssemblySpec) -> tuple[Path, Path, dict]:
             {
                 "name": part.name,
                 "kind": part.kind,
+                "geometry_kind": part.geometry_kind,
+                "taxonomy": part.taxonomy,
+                "category": part.category,
+                "type_code": part.type_code,
                 "material": part.material,
                 "tolerance": part.tolerance.model_dump(),
                 "notes": part.notes,

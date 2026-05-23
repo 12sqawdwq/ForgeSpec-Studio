@@ -180,7 +180,11 @@ def fastener_spec_from_prompt(prompt: str) -> dict[str, Any]:
             {
                 "name": name,
                 "kind": "screw",
+                "geometry_kind": "screw",
                 "family": default["family"],
+                "taxonomy": "fastener",
+                "category": variant,
+                "type_code": f"{variant}:{thread}",
                 "standard": default["standard"],
                 "variant": variant,
                 "nominal_thread": thread,

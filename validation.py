@@ -14,7 +14,7 @@ def validate_spec(spec: AssemblySpec) -> dict[str, Any]:
         warnings.append("Assembly contains no parts.")
     if spec.decomposition.scope in {"multi_part_assembly", "robot_description"} and len(spec.parts) <= 1:
         warnings.append("Assembly-like request produced one or fewer parts.")
-    if spec.decomposition.scope != "standard_part" and spec.parts and all(part.kind == "screw" for part in spec.parts):
+    if spec.decomposition.scope != "standard_part" and spec.parts and all((part.geometry_kind or part.kind) == "screw" for part in spec.parts):
         warnings.append("Non-standard-part request produced only fasteners.")
     standard_refs = [part.standard for part in spec.parts if part.standard]
     return {

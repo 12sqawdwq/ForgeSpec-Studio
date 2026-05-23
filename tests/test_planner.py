@@ -22,5 +22,6 @@ def test_planner_flange_has_eight_holes_when_requested():
 def test_planner_mounting_block_has_four_holes():
     spec, _ = plan_from_prompt("生成一个 100x60x20mm 安装块，四角 M6 沉孔")
     part = spec["parts"][0]
-    assert part["kind"] == "bracket"
+    assert part["kind"] == "block"
+    assert part["geometry_kind"] == "block"
     assert part["holes"][0]["count"] == 4

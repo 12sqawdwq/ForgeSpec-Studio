@@ -12,9 +12,10 @@ def _parts(raw: dict[str, Any]) -> list[dict[str, Any]]:
 
 def _is_fastener_part(part: dict[str, Any]) -> bool:
     kind = str(part.get("kind", "")).lower()
+    geometry_kind = str(part.get("geometry_kind", "")).lower()
     family = str(part.get("family", "")).lower()
     name = str(part.get("name", "")).lower()
-    return kind == "screw" or family == "fastener" or "screw" in name or "bolt" in name
+    return kind == "screw" or geometry_kind == "screw" or family == "fastener" or "screw" in name or "bolt" in name
 
 
 def validate_prompt_alignment(raw: dict[str, Any], prompt: str) -> None:
