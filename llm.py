@@ -7,7 +7,8 @@ import re
 import httpx
 from dotenv import load_dotenv
 
-from standard_library import expand_standard_parts, looks_like_fastener
+from alignment import validate_prompt_alignment
+from standard_library import expand_standard_parts, is_primary_fastener_request
 from templates import fallback_spec
 
 load_dotenv()
@@ -19,6 +20,14 @@ Return only JSON matching this schema:
   "project_name": "snake_case_name",
   "unit": "mm",
   "description": "string",
+  "decomposition": {
+    "main_object": "the object requested as the design target",
+    "scope": "single_part|multi_part_assembly|standard_part|unknown",
+    "requested_output": ["stl", "json", "preview", "..."],
+    "functional_components": ["components that form the main object"],
+    "standard_part_mentions": ["standard/catalog parts mentioned as hardware or subcomponents"],
+    "assumptions": ["explicit assumptions made to fill missing dimensions"]
+  },
   "parts": [
     {
       "name": "string",
@@ -51,11 +60,14 @@ Return only JSON matching this schema:
   "manufacturing_notes": ["string"]
 }
 Use manufacturable metric dimensions. Include tolerances, chamfers, fillets, hole details, material, and inspection notes.
-For standard screws, bolts, nuts, washers, pins, bearings, and other catalog parts, prefer a standards-based interpretation:
-- If the user asks only for "a standard screw/bolt", choose ISO 4017 / GB/T 5783 hex head bolt M10x50 class 8.8 unless a different type or size is specified.
-- For socket head cap screws, use ISO 4762 / GB/T 70.1.
-- Use kind "screw" for screws/bolts and fill family, standard, variant, nominal_thread, thread_pitch_mm, thread_length_mm, head_style, drive_style, and grade.
-- Do not collapse screws/bolts into plain shafts."""
+General reasoning policy:
+1. First identify the user's main design target. Treat words after "with / composed of / using / include / 由 / 包含 / 若干" as components or hardware unless they are clearly the main object.
+2. If the main target is an assembly, set decomposition.scope="multi_part_assembly" and create several functional parts. Do not replace the entire assembly with one mentioned screw, bolt, bearing, washer, or other catalog item.
+3. If the main target itself is a standard/catalog part, set decomposition.scope="standard_part" and use the closest ISO/GB/DIN/JIS family.
+4. For standard screws/bolts as the main target, choose ISO 4017 / GB/T 5783 hex head bolt M10x50 class 8.8 unless a different type or size is specified.
+5. For socket head cap screws, use ISO 4762 / GB/T 70.1.
+6. Use kind "screw" only for actual screw/bolt parts, not for assemblies that merely mention fasteners.
+7. When the request is broad, make conservative concept-level geometry with explicit assumptions instead of pretending it is production-ready."""
 
 
 def _extract_json(text: str) -> dict:
@@ -160,7 +172,7 @@ async def _generate_with_gemini(prompt: str) -> tuple[dict, str]:
 
 async def generate_spec(prompt: str, use_gemini: bool = True) -> tuple[dict, str]:
     load_dotenv(".env", override=True)
-    if looks_like_fastener(prompt):
+    if is_primary_fastener_request(prompt):
         raw, standard_source = expand_standard_parts({}, prompt)
         return raw, standard_source or "standard_library:fastener"
 
@@ -179,17 +191,21 @@ async def generate_spec(prompt: str, use_gemini: bool = True) -> tuple[dict, str
             if provider == "zhipu":
                 raw, source = await _generate_with_zhipu(prompt)
                 raw, standard_source = expand_standard_parts(raw, prompt)
+                validate_prompt_alignment(raw, prompt)
                 return raw, f"{source}+{standard_source}" if standard_source else source
             if provider == "gemini":
                 raw, source = await _generate_with_gemini(prompt)
                 raw, standard_source = expand_standard_parts(raw, prompt)
+                validate_prompt_alignment(raw, prompt)
                 return raw, f"{source}+{standard_source}" if standard_source else source
         except Exception as exc:
             errors.append(f"{provider}:{_safe_error(exc)}")
 
     if not errors:
         raw, standard_source = expand_standard_parts(fallback_spec(prompt), prompt)
+        validate_prompt_alignment(raw, prompt)
         return raw, standard_source or "fallback:no_provider_configured"
     reason = " | ".join(errors)[-420:]
     raw, standard_source = expand_standard_parts(fallback_spec(prompt), prompt)
+    validate_prompt_alignment(raw, prompt)
     return raw, standard_source or f"fallback:llm_error:{reason}"

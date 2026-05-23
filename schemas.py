@@ -86,10 +86,20 @@ class PartSpec(BaseModel):
     standard_dimensions: dict[str, Any] = Field(default_factory=dict)
 
 
+class TaskDecomposition(BaseModel):
+    main_object: str = ""
+    scope: Literal["single_part", "multi_part_assembly", "standard_part", "unknown"] = "unknown"
+    requested_output: list[str] = Field(default_factory=list)
+    functional_components: list[str] = Field(default_factory=list)
+    standard_part_mentions: list[str] = Field(default_factory=list)
+    assumptions: list[str] = Field(default_factory=list)
+
+
 class AssemblySpec(BaseModel):
     project_name: str = "industrial_parametric_part"
     unit: Literal["mm"] = "mm"
     description: str
+    decomposition: TaskDecomposition = Field(default_factory=TaskDecomposition)
     parts: list[PartSpec]
     manufacturing_notes: list[str] = Field(default_factory=list)
 

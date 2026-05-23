@@ -10,9 +10,61 @@ from typing import Any
 STANDARD_DIR = Path(__file__).with_name("standards")
 FASTENER_DB = STANDARD_DIR / "fasteners.json"
 
+FASTENER_TERMS = (
+    "bolt",
+    "screw",
+    "fastener",
+    "socket head",
+    "hex head",
+    "\u87ba\u4e1d",
+    "\u87ba\u9489",
+    "\u87ba\u6813",
+    "\u6807\u51c6\u4ef6\u87ba",
+)
+
+ASSEMBLY_CONTEXT_TERMS = (
+    "assembly",
+    "assembled",
+    "robot",
+    "robotic",
+    "mechanical arm",
+    "manipulator",
+    "base",
+    "flange",
+    "joint",
+    "link",
+    "bracket",
+    "plate",
+    "\u88c5\u914d",
+    "\u88c5\u914d\u4f53",
+    "\u673a\u68b0\u81c2",
+    "\u6982\u5ff5\u7ea7",
+    "\u5e95\u5ea7",
+    "\u6cd5\u5170",
+    "\u65cb\u8f6c\u5173\u8282",
+    "\u81c2\u6746",
+    "\u5b89\u88c5\u677f",
+    "\u82e5\u5e72",
+    "\u7ec4\u6210",
+)
+
+
+def is_larger_assembly_request(prompt: str) -> bool:
+    return _has_assembly_context(prompt)
+
 
 def _load_fasteners() -> dict[str, Any]:
     return json.loads(FASTENER_DB.read_text(encoding="utf-8"))
+
+
+def _has_fastener_term(text: str) -> bool:
+    lower = text.lower()
+    return any(term in lower for term in FASTENER_TERMS)
+
+
+def _has_assembly_context(text: str) -> bool:
+    lower = text.lower()
+    return any(term in lower for term in ASSEMBLY_CONTEXT_TERMS)
 
 
 def _find_thread(text: str) -> str:
@@ -25,9 +77,9 @@ def _find_thread(text: str) -> str:
 def _find_length(text: str) -> float:
     compact = text.replace(" ", "")
     patterns = [
-        r"M(?:3|4|5|6|8|10|12|16)[x×*](\d+(?:\.\d+)?)",
-        r"(?:length|长度|长|杆长|螺杆长度)(?:为|=|:)?(\d+(?:\.\d+)?)\s*mm?",
-        r"(\d+(?:\.\d+)?)\s*mm(?:长|长度)?"
+        r"M(?:3|4|5|6|8|10|12|16)[x\u00d7*](\d+(?:\.\d+)?)",
+        r"(?:length|\u957f\u5ea6|\u957f|\u6746\u957f|\u87ba\u6746\u957f\u5ea6)(?:\u4e3a|=|:)?(\d+(?:\.\d+)?)\s*mm?",
+        r"(\d+(?:\.\d+)?)\s*mm(?:\u957f|\u957f\u5ea6)?",
     ]
     for pattern in patterns:
         match = re.search(pattern, compact, re.IGNORECASE)
@@ -40,25 +92,45 @@ def _find_length(text: str) -> float:
 
 def _variant_from_text(text: str) -> str:
     lower = text.lower()
-    if "内六角" in text or "socket" in lower or "cap screw" in lower:
+    if "\u5185\u516d\u89d2" in text or "socket" in lower or "cap screw" in lower:
         return "socket_head_cap_screw"
     return "hex_head_bolt"
 
 
+def is_primary_fastener_request(prompt: str) -> bool:
+    """Return True only when the requested main object is a fastener.
+
+    A prompt may mention screws as assembly hardware, e.g. "robot arm with
+    several M6/M8 bolts"; that must not hijack the entire generation.
+    """
+    text = prompt.strip()
+    if not _has_fastener_term(text):
+        return False
+
+    lower = text.lower()
+    direct_standard_patterns = (
+        "\u6807\u51c6\u4ef6\u87ba\u4e1d",
+        "\u6807\u51c6\u4ef6\u87ba\u9489",
+        "\u6807\u51c6\u4ef6\u87ba\u6813",
+        "standard screw",
+        "standard bolt",
+        "hex head bolt",
+        "socket head cap screw",
+    )
+    if any(pattern in lower for pattern in direct_standard_patterns):
+        return not _has_assembly_context(text) or len(text) <= 80
+
+    starts_as_part = lower.startswith(("generate ", "create ", "draw ", "model ", "design "))
+    starts_as_part = starts_as_part or text.startswith(("\u751f\u6210", "\u7ed8\u5236", "\u8bbe\u8ba1", "\u5efa\u6a21"))
+    if starts_as_part and not _has_assembly_context(text):
+        return True
+
+    short_fastener_request = len(text) <= 48 and _has_fastener_term(text) and not _has_assembly_context(text)
+    return short_fastener_request
+
+
 def looks_like_fastener(prompt: str) -> bool:
-    lower = prompt.lower()
-    keywords = [
-        "螺丝",
-        "螺钉",
-        "螺栓",
-        "标准件螺",
-        "bolt",
-        "screw",
-        "fastener",
-        "socket head",
-        "hex head",
-    ]
-    return any(keyword in lower for keyword in keywords)
+    return _has_fastener_term(prompt)
 
 
 def fastener_spec_from_prompt(prompt: str) -> dict[str, Any]:
@@ -96,6 +168,14 @@ def fastener_spec_from_prompt(prompt: str) -> dict[str, Any]:
         "project_name": name,
         "unit": "mm",
         "description": f"{default['description']} generated from request: {prompt}",
+        "decomposition": {
+            "main_object": name,
+            "scope": "standard_part",
+            "requested_output": ["stl", "json", "preview"],
+            "functional_components": ["head", "threaded_shank"],
+            "standard_part_mentions": [f"{default['standard']} {thread}x{length:g}"],
+            "assumptions": ["Defaulted to a common metric standard fastener because the prompt did not define a larger assembly."],
+        },
         "parts": [
             {
                 "name": name,
@@ -141,16 +221,24 @@ def fastener_spec_from_prompt(prompt: str) -> dict[str, Any]:
 
 
 def expand_standard_parts(raw: dict[str, Any], prompt: str) -> tuple[dict[str, Any], str | None]:
-    if looks_like_fastener(prompt):
+    if is_primary_fastener_request(prompt):
         return fastener_spec_from_prompt(prompt), "standard_library:fastener"
 
     changed = False
     spec = copy.deepcopy(raw)
     for part in spec.get("parts", []):
         fingerprint = json.dumps(part, ensure_ascii=False).lower()
-        if any(token in fingerprint for token in ["螺丝", "螺钉", "螺栓", "screw", "bolt", "fastener"]):
-            replacement = fastener_spec_from_prompt(f"{prompt} {fingerprint}")
+        part_name = str(part.get("name", "")).lower()
+        part_kind = str(part.get("kind", "")).lower()
+        explicit_fastener_part = part_kind == "screw" or _has_fastener_term(part_name) or part.get("family") == "fastener"
+        already_expanded = part_kind == "screw" and part.get("nominal_thread") and part.get("standard_dimensions")
+        if already_expanded:
+            continue
+        if explicit_fastener_part:
+            position = part.get("position_mm", [0, 0, 0])
+            replacement = fastener_spec_from_prompt(f"{part_name} {fingerprint}")
             part.clear()
             part.update(replacement["parts"][0])
+            part["position_mm"] = position
             changed = True
-    return spec, "standard_library:normalized_fastener" if changed else None
+    return spec, "standard_library:normalized_fastener_parts" if changed else None
