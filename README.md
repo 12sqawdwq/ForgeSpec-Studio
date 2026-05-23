@@ -11,7 +11,8 @@ mounting blocks, T-slot nuts, dowel pins, and simple precision assemblies.
 
 - FastAPI backend with a browser-based interactive UI.
 - Conda-managed Python environment.
-- CadQuery STL export.
+- CadQuery STEP/STL export.
+- Brief -> intent -> planner -> deterministic AssemblySpec pipeline.
 - Standards-backed part expansion for common fasteners.
 - Zhipu/BigModel and Gemini API support, with deterministic fallback templates.
 - Day/night UI themes, Chinese/English interface, sample prompts, JSON
@@ -106,6 +107,8 @@ front of the service and forward traffic to the configured `PORT`.
 - `POST /api/generate-config`
 - `POST /api/build`
 - `GET /api/files`
+
+`/api/build` returns STL, STEP, JSON, preview SVG, and a validation summary.
 
 ## License
 

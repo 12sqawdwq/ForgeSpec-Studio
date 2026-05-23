@@ -44,6 +44,7 @@ def build(req: BuildRequest) -> dict:
             "ok": True,
             "summary": summary,
             "stl_url": f"/outputs/{stl_path.name}",
+            "step_url": f"/outputs/{summary['step']}",
             "config_url": f"/outputs/{json_path.name}",
             "preview_url": f"/outputs/{summary['preview']}",
         }

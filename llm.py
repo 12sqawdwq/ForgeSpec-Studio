@@ -8,8 +8,8 @@ import httpx
 from dotenv import load_dotenv
 
 from alignment import validate_prompt_alignment
-from standard_library import expand_standard_parts, is_primary_fastener_request
-from templates import fallback_spec
+from planner import plan_from_candidate, plan_from_prompt
+from standard_library import is_primary_fastener_request
 
 load_dotenv()
 
@@ -173,12 +173,12 @@ async def _generate_with_gemini(prompt: str) -> tuple[dict, str]:
 async def generate_spec(prompt: str, use_gemini: bool = True) -> tuple[dict, str]:
     load_dotenv(".env", override=True)
     if is_primary_fastener_request(prompt):
-        raw, standard_source = expand_standard_parts({}, prompt)
-        return raw, standard_source or "standard_library:fastener"
+        raw, source = plan_from_prompt(prompt)
+        return raw, source
 
     if not use_gemini:
-        raw, standard_source = expand_standard_parts(fallback_spec(prompt), prompt)
-        return raw, standard_source or "fallback:llm_disabled"
+        raw, source = plan_from_prompt(prompt)
+        return raw, f"{source}+llm_disabled"
 
     providers = [
         item.strip().lower()
@@ -189,23 +189,23 @@ async def generate_spec(prompt: str, use_gemini: bool = True) -> tuple[dict, str
     for provider in providers:
         try:
             if provider == "zhipu":
-                raw, source = await _generate_with_zhipu(prompt)
-                raw, standard_source = expand_standard_parts(raw, prompt)
+                candidate, source = await _generate_with_zhipu(prompt)
+                raw, plan_source = plan_from_candidate(prompt, candidate)
                 validate_prompt_alignment(raw, prompt)
-                return raw, f"{source}+{standard_source}" if standard_source else source
+                return raw, f"{source}+{plan_source}"
             if provider == "gemini":
-                raw, source = await _generate_with_gemini(prompt)
-                raw, standard_source = expand_standard_parts(raw, prompt)
+                candidate, source = await _generate_with_gemini(prompt)
+                raw, plan_source = plan_from_candidate(prompt, candidate)
                 validate_prompt_alignment(raw, prompt)
-                return raw, f"{source}+{standard_source}" if standard_source else source
+                return raw, f"{source}+{plan_source}"
         except Exception as exc:
             errors.append(f"{provider}:{_safe_error(exc)}")
 
     if not errors:
-        raw, standard_source = expand_standard_parts(fallback_spec(prompt), prompt)
+        raw, source = plan_from_prompt(prompt)
         validate_prompt_alignment(raw, prompt)
-        return raw, standard_source or "fallback:no_provider_configured"
+        return raw, f"{source}+no_provider_configured"
     reason = " | ".join(errors)[-420:]
-    raw, standard_source = expand_standard_parts(fallback_spec(prompt), prompt)
+    raw, source = plan_from_prompt(prompt)
     validate_prompt_alignment(raw, prompt)
-    return raw, standard_source or f"fallback:llm_error:{reason}"
+    return raw, f"{source}+llm_error:{reason}"

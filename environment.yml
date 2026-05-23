@@ -10,3 +10,4 @@ dependencies:
   - httpx
   - python-dotenv
   - numpy
+  - pytest

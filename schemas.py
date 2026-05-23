@@ -88,7 +88,7 @@ class PartSpec(BaseModel):
 
 class TaskDecomposition(BaseModel):
     main_object: str = ""
-    scope: Literal["single_part", "multi_part_assembly", "standard_part", "unknown"] = "unknown"
+    scope: Literal["single_part", "multi_part_assembly", "standard_part", "robot_description", "inspection_or_modification", "unknown"] = "unknown"
     requested_output: list[str] = Field(default_factory=list)
     functional_components: list[str] = Field(default_factory=list)
     standard_part_mentions: list[str] = Field(default_factory=list)

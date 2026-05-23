@@ -352,6 +352,7 @@
         built: 'STL 已导出',
         loadStl: '加载最终 STL',
         downloadStl: '下载 STL',
+        downloadStep: '下载 STEP',
         downloadJson: '下载 JSON'
       },
       en: {
@@ -380,6 +381,7 @@
         built: 'STL exported',
         loadStl: 'Load Final STL',
         downloadStl: 'Download STL',
+        downloadStep: 'Download STEP',
         downloadJson: 'Download JSON'
       }
     };
@@ -556,6 +558,7 @@
     function showDownloads(data) {
       downloads.innerHTML = '';
       addDownload(t('downloadStl'), data.stl_url);
+      if (data.step_url) addDownload(t('downloadStep'), data.step_url);
       addDownload(t('downloadJson'), data.config_url);
       const loadButton = document.createElement('button');
       loadButton.textContent = t('loadStl');

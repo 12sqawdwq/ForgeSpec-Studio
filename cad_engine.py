@@ -10,6 +10,7 @@ import cadquery as cq
 
 from schemas import AssemblySpec, PartSpec
 from preview import render_stl_svg
+from validation import validate_export
 
 
 OUTPUT_DIR = Path("outputs")
@@ -138,6 +139,7 @@ def build_assembly(spec: AssemblySpec) -> tuple[Path, Path, dict]:
     run_id = uuid.uuid4().hex[:10]
     base = f"{slugify(spec.project_name)}_{run_id}"
     stl_path = OUTPUT_DIR / f"{base}.stl"
+    step_path = OUTPUT_DIR / f"{base}.step"
     json_path = OUTPUT_DIR / f"{base}.json"
     preview_path = OUTPUT_DIR / f"{base}.svg"
 
@@ -160,7 +162,16 @@ def build_assembly(spec: AssemblySpec) -> tuple[Path, Path, dict]:
     if compound is None:
         raise ValueError("Assembly must contain at least one part.")
 
+    cq.exporters.export(compound, str(step_path))
     cq.exporters.export(compound, str(stl_path), tolerance=0.05, angularTolerance=0.1)
     render_stl_svg(stl_path, preview_path)
     json_path.write_text(json.dumps(spec.model_dump(), indent=2), encoding="utf-8")
-    return stl_path, json_path, {"parts": part_summaries, "stl": stl_path.name, "config": json_path.name, "preview": preview_path.name}
+    validation = validate_export(compound, spec, stl_path, json_path, step_path)
+    return stl_path, json_path, {
+        "parts": part_summaries,
+        "stl": stl_path.name,
+        "step": step_path.name,
+        "config": json_path.name,
+        "preview": preview_path.name,
+        "validation": validation,
+    }

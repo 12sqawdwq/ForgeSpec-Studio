@@ -1,0 +1,5 @@
+{"id":"standard_screw","prompt":"生成一个标准件螺丝","expect_scope":"standard_part","expect_kind":"screw"}
+{"id":"robot_arm_with_bolts","prompt":"生成一个六轴机械臂装配体，由底座法兰、旋转关节、两段臂杆、若干 M6/M8 螺栓组成","expect_scope":"robot_description","forbid_all_kind":"screw"}
+{"id":"mounting_block","prompt":"生成一个 100x60x20mm 安装块，四角 M6 沉孔","expect_scope":"single_part","expect_kind":"bracket"}
+{"id":"flange","prompt":"生成一个法兰盘，外径 120mm，中心孔 35mm，8 个螺栓孔","expect_scope":"single_part","expect_kind":"flange"}
+{"id":"shaft_bearing_assembly","prompt":"生成一个装配体，包含轴、轴承座、联轴器、安装底板","expect_scope":"multi_part_assembly","min_parts":2}
