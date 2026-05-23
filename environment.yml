@@ -1,0 +1,12 @@
+name: gencad_gemini
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - cadquery
+  - fastapi
+  - uvicorn
+  - pydantic
+  - httpx
+  - python-dotenv
+  - numpy

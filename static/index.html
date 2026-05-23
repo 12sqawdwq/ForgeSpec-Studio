@@ -1,0 +1,923 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ForgeSpec Studio</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #667085;
+      --line: #d7dee9;
+      --panel: #f7f9fc;
+      --paper: #ffffff;
+      --bg: #eef2f6;
+      --accent: #0f766e;
+      --accent-dark: #0b5f59;
+      --steel: #445365;
+      --warn: #975a16;
+      --danger: #b42318;
+      --json-key: #6d28d9;
+      --json-string: #047857;
+      --json-number: #b45309;
+      --json-literal: #2563eb;
+      --grid-a: rgba(113, 128, 150, .18);
+      --grid-b: rgba(113, 128, 150, .11);
+      --shadow: rgba(15, 23, 42, .08);
+    }
+    body[data-theme="night"] {
+      --ink: #e6edf7;
+      --muted: #9ba8ba;
+      --line: #2a3648;
+      --panel: #131c29;
+      --paper: #0e1622;
+      --bg: #090f18;
+      --accent: #22b8a5;
+      --accent-dark: #15917f;
+      --steel: #64748b;
+      --warn: #d28a24;
+      --danger: #ff7a70;
+      --json-key: #c4b5fd;
+      --json-string: #5eead4;
+      --json-number: #fbbf24;
+      --json-literal: #93c5fd;
+      --grid-a: rgba(148, 163, 184, .16);
+      --grid-b: rgba(148, 163, 184, .10);
+      --shadow: rgba(0, 0, 0, .24);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 18% 0%, rgba(15, 118, 110, .10), transparent 34%),
+        linear-gradient(180deg, var(--bg), var(--bg));
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      letter-spacing: 0;
+    }
+    header {
+      height: 66px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 16px;
+      padding: 0 18px;
+      border-bottom: 1px solid var(--line);
+      background: color-mix(in srgb, var(--paper) 94%, transparent);
+      box-shadow: 0 8px 28px var(--shadow);
+    }
+    h1 { margin: 0; font-size: 18px; line-height: 1.15; font-weight: 760; }
+    .subtitle { margin-top: 3px; color: var(--muted); font-size: 12px; }
+    .top-actions { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .status {
+      color: var(--muted);
+      font-size: 13px;
+      max-width: 34vw;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .progress { position: fixed; inset: 66px 0 auto 0; height: 3px; z-index: 20; }
+    .progress > div { width: 0; height: 100%; background: var(--accent); transition: width .25s ease; }
+    main {
+      display: grid;
+      grid-template-columns: minmax(420px, 43vw) 1fr;
+      gap: 14px;
+      padding: 14px;
+      height: calc(100vh - 66px);
+      min-height: 690px;
+    }
+    section {
+      min-width: 0;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 12px 30px var(--shadow);
+    }
+    .left { display: grid; grid-template-rows: auto auto 1fr auto; }
+    .right { display: grid; grid-template-rows: auto 1fr auto auto; }
+    .bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+      min-width: 0;
+    }
+    .bar strong { font-size: 14px; margin-right: auto; }
+    button, a.button {
+      min-height: 34px;
+      border: 1px solid #b9c5d3;
+      background: var(--paper);
+      color: var(--ink);
+      border-radius: 6px;
+      padding: 0 12px;
+      font-size: 13px;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+    }
+    body[data-theme="night"] button,
+    body[data-theme="night"] a.button,
+    body[data-theme="night"] select { border-color: #3a485b; }
+    button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+    button.primary:hover { background: var(--accent-dark); }
+    button.warn { background: var(--warn); color: #fff; border-color: var(--warn); }
+    button:disabled { opacity: .55; cursor: wait; }
+    .segmented { display: inline-flex; border: 1px solid #b9c5d3; border-radius: 6px; overflow: hidden; }
+    .segmented button { border: 0; border-radius: 0; min-height: 32px; }
+    .segmented button.active { background: var(--steel); color: #fff; }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 28px;
+      padding: 0 9px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 12px;
+      background: var(--paper);
+    }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: #98a2b3; }
+    .dot.ok { background: #0f9f6e; }
+    .dot.err { background: var(--danger); }
+    textarea {
+      width: 100%;
+      border: 0;
+      border-bottom: 1px solid var(--line);
+      resize: none;
+      padding: 12px;
+      color: var(--ink);
+      background: var(--paper);
+      outline: none;
+    }
+    #prompt { height: 156px; font: inherit; font-size: 14px; line-height: 1.55; }
+    .json-box {
+      position: relative;
+      height: 100%;
+      min-height: 360px;
+      border-bottom: 1px solid var(--line);
+      background: var(--paper);
+      overflow: hidden;
+    }
+    #config, #jsonHighlight {
+      position: absolute;
+      inset: 0;
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      padding: 12px;
+      border: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font: 14px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      tab-size: 2;
+    }
+    #config {
+      z-index: 2;
+      color: transparent;
+      caret-color: var(--ink);
+      background: transparent;
+      resize: none;
+    }
+    #jsonHighlight { z-index: 1; color: var(--ink); pointer-events: none; }
+    .json-key { color: var(--json-key); font-weight: 650; }
+    .json-string { color: var(--json-string); }
+    .json-number { color: var(--json-number); }
+    .json-literal { color: var(--json-literal); }
+    label { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; color: var(--muted); }
+    select {
+      min-height: 34px;
+      max-width: 190px;
+      border: 1px solid #b9c5d3;
+      border-radius: 6px;
+      color: var(--ink);
+      background: var(--paper);
+      padding: 0 8px;
+      font-size: 13px;
+    }
+    .viewer-wrap {
+      position: relative;
+      min-height: 440px;
+      background:
+        linear-gradient(90deg, var(--grid-a) 1px, transparent 1px),
+        linear-gradient(var(--grid-b) 1px, transparent 1px),
+        var(--panel);
+      background-size: 42px 42px;
+    }
+    #viewer { width: 100%; height: 100%; min-height: 440px; display: block; background: transparent; }
+    #previewImage {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: var(--panel);
+      display: none;
+    }
+    .placeholder {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: var(--muted);
+      font-size: 16px;
+      pointer-events: none;
+      text-align: center;
+      padding: 24px;
+    }
+    .downloads {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px;
+      border-top: 1px solid var(--line);
+      background: var(--paper);
+      min-height: 58px;
+      flex-wrap: wrap;
+    }
+    .meta { font-size: 12px; color: var(--muted); margin-left: auto; }
+    .error { color: var(--danger); }
+    .log {
+      width: 100%;
+      max-height: 110px;
+      overflow: auto;
+      padding: 8px 10px;
+      border-top: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--muted);
+      font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      white-space: pre-wrap;
+    }
+    @media (max-width: 980px) {
+      header { grid-template-columns: 1fr; height: auto; padding: 10px 14px; }
+      .progress { inset: 96px 0 auto 0; }
+      .top-actions { flex-wrap: wrap; }
+      main { grid-template-columns: 1fr; height: auto; min-height: 0; }
+      .status { max-width: 72vw; }
+      #viewer, .viewer-wrap { height: 58vh; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1 data-i18n="title">ForgeSpec Studio 铸规工坊</h1>
+      <div class="subtitle" data-i18n="subtitle">自然语言生成参数化配置，前端即时预览，后端导出 STL/JSON</div>
+    </div>
+    <div class="top-actions">
+      <span class="chip"><span id="healthDot" class="dot"></span><span id="healthText">Checking</span></span>
+      <span id="status" class="status">Ready</span>
+      <div class="segmented" aria-label="Theme">
+        <button id="themeDay" class="active" data-i18n="day">日光</button>
+        <button id="themeNight" data-i18n="night">黑夜</button>
+      </div>
+      <div class="segmented" aria-label="Language">
+        <button id="langZh" class="active">中</button>
+        <button id="langEn">EN</button>
+      </div>
+    </div>
+  </header>
+  <div class="progress"><div id="progressBar"></div></div>
+  <main>
+    <section class="left">
+      <div class="bar">
+        <strong data-i18n="specTitle">规格输入</strong>
+        <label><input id="useGemini" type="checkbox" checked /><span data-i18n="useLlm">启用模型</span></label>
+        <select id="sampleSelect" aria-label="Sample"></select>
+        <button id="sampleBtn" data-i18n="loadSample">载入</button>
+        <button id="generateBtn" class="primary" data-i18n="generate">生成配置</button>
+      </div>
+      <textarea id="prompt"></textarea>
+      <div class="json-box">
+        <pre id="jsonHighlight" aria-hidden="true"></pre>
+        <textarea id="config" spellcheck="false"></textarea>
+      </div>
+      <div class="bar">
+        <button id="buildBtn" class="warn" data-i18n="build">导出 STL</button>
+        <button id="formatBtn" data-i18n="format">格式化 JSON</button>
+        <span class="meta" id="source" data-i18n="sourceEmpty">尚未生成</span>
+      </div>
+    </section>
+    <section class="right">
+      <div class="bar">
+        <strong data-i18n="previewTitle">参数化预览</strong>
+        <span class="chip"><span id="providerDot" class="dot"></span><span id="providerText">Provider</span></span>
+        <button id="refreshBtn" data-i18n="refresh">文件</button>
+      </div>
+      <div class="viewer-wrap">
+        <canvas id="viewer"></canvas>
+        <img id="previewImage" alt="Server rendered preview" />
+        <div class="placeholder" id="viewerHint" data-i18n="viewerHint">生成配置后立即显示三维预览</div>
+      </div>
+      <div class="downloads" id="downloads">
+        <span class="meta" data-i18n="downloadHint">STL 和 JSON 下载链接会显示在这里</span>
+      </div>
+      <div class="log" id="log">Ready.</div>
+    </section>
+  </main>
+
+  <script>
+    const i18n = {
+      zh: {
+        title: 'ForgeSpec Studio 铸规工坊',
+        subtitle: '自然语言生成参数化配置，前端即时预览，后端导出 STL/JSON',
+        specTitle: '规格输入',
+        useLlm: '启用模型',
+        loadSample: '载入',
+        day: '日光',
+        night: '黑夜',
+        generate: '生成配置',
+        build: '导出 STL',
+        format: '格式化 JSON',
+        sourceEmpty: '尚未生成',
+        previewTitle: '参数化预览',
+        refresh: '文件',
+        viewerHint: '生成配置后立即显示三维预览',
+        downloadHint: 'STL 和 JSON 下载链接会显示在这里',
+        ready: '就绪',
+        checking: '检查中',
+        online: '服务在线',
+        offline: '服务异常',
+        generating: '正在生成配置...',
+        building: '正在导出 STL...',
+        generated: '配置已生成',
+        built: 'STL 已导出',
+        loadStl: '加载最终 STL',
+        downloadStl: '下载 STL',
+        downloadJson: '下载 JSON'
+      },
+      en: {
+        title: 'ForgeSpec Studio',
+        subtitle: 'Generate parametric CAD from text, preview instantly, export STL/JSON from the server',
+        specTitle: 'Specification',
+        useLlm: 'Use LLM',
+        loadSample: 'Load',
+        day: 'Day',
+        night: 'Night',
+        generate: 'Generate',
+        build: 'Export STL',
+        format: 'Format JSON',
+        sourceEmpty: 'No model generated yet',
+        previewTitle: 'Parametric Preview',
+        refresh: 'Files',
+        viewerHint: 'Generate a configuration to preview instantly',
+        downloadHint: 'STL and JSON download links will appear here',
+        ready: 'Ready',
+        checking: 'Checking',
+        online: 'Service online',
+        offline: 'Service unavailable',
+        generating: 'Generating configuration...',
+        building: 'Exporting STL...',
+        generated: 'Configuration ready',
+        built: 'STL exported',
+        loadStl: 'Load Final STL',
+        downloadStl: 'Download STL',
+        downloadJson: 'Download JSON'
+      }
+    };
+
+    const samples = {
+      zh: [
+        ['dovetail', '燕尾导轨滑台座', '生成一个工业级精密燕尾导轨滑台座，用于小型机床或光学调整平台，单位 mm。主体为矩形滑台座，长度 140mm，宽度 70mm，高度 28mm。顶部沿长度方向加工一条燕尾导轨凸台，底部宽度 42mm，顶部宽度 28mm，高度 12mm，燕尾两侧斜面角度 55 度。主体底部设置 4 个 M6 安装通孔，孔径 6.6mm，孔距 110mm x 42mm，带沉孔直径 11mm 深度 5mm。中心沿长度方向开一条长圆减重槽，槽长 70mm，槽宽 16mm，贯穿主体。材料 40Cr 调质钢，硬度 HRC 30-34，要求倒角、圆角、平面度、平行度、孔位公差和检验说明。'],
+        ['tslot', 'T 型槽滑块螺母', '生成一个工业级 T 型槽滑块螺母组件，用于机床工作台或铝型材导轨夹紧，单位 mm。主体长度 60mm，上部窄台阶宽度 18mm 高度 8mm，下部宽台阶宽度 30mm 高度 10mm，总高度 18mm。中心 M10x1.5 螺纹孔，底孔 8.5mm，竖直贯穿。四周倒角 0.8mm，过渡 R1.5 圆角，底部两侧导入斜面，上表面浅凹识别槽。材料 45# 钢或 1045 碳钢，发黑处理，HRC28-32，输出详细公差、加工和检验说明。'],
+        ['pin', '精密定位销', '生成一个工业级精密定位销，直径 10mm，长度 50mm，两端 1mm x 45 度倒角，材料 GCr15 轴承钢，热处理 HRC58-62，外圆 h6 公差，表面粗糙度 Ra0.8。要求包含材料、关键尺寸、公差、倒角、热处理、磨削加工和检验说明。'],
+        ['block', '沉孔安装块', '生成一个工业级矩形安装块，长度 90mm，宽度 54mm，高度 22mm。四角布置 4 个 M6 沉孔安装孔，孔径 6.6mm，沉孔直径 11mm，深度 5mm，孔距 68mm x 34mm。中心有一个 20mm 定位通孔，两侧各有一个 5mm 定位销孔。材料 6061-T6 铝合金，阳极氧化，要求倒角、公差、孔位置度和检验说明。']
+      ],
+      en: [
+        ['dovetail', 'Dovetail slide base', 'Generate an industrial precision dovetail slide base for a compact machine tool or optical adjustment platform, unit mm. The base is a rectangular block, length 140mm, width 70mm, height 28mm. Add a longitudinal dovetail rail on top, bottom width 42mm, top width 28mm, height 12mm, symmetric 55 degree side faces. Add four M6 mounting through holes, diameter 6.6mm, rectangular spacing 110mm x 42mm, with counterbores diameter 11mm and depth 5mm. Add a central obround lightening slot, length 70mm, width 16mm, through the body. Material 40Cr quenched and tempered steel, HRC 30-34. Include chamfers, fillets, flatness, parallelism, hole position tolerance, machining notes, and inspection notes.'],
+        ['tslot', 'T-slot slider nut', 'Generate an industrial T-slot slider nut for machine table or aluminum extrusion clamping, unit mm. Body length 60mm. Upper narrow step width 18mm height 8mm, lower wide step width 30mm height 10mm, total height 18mm. Add a vertical M10x1.5 threaded hole with 8.5mm tap drill. Add 0.8mm chamfers, R1.5 transition fillets, bottom lead-in bevels, and a shallow top identification groove. Material 1045 carbon steel, black oxide, HRC28-32. Include tolerances, machining notes, and inspection notes.'],
+        ['pin', 'Precision dowel pin', 'Generate an industrial precision dowel pin, diameter 10mm, length 50mm, 1mm x 45 degree chamfers on both ends, material GCr15 bearing steel, heat treated to HRC58-62, h6 outer diameter tolerance, surface roughness Ra0.8. Include material, key dimensions, tolerances, chamfers, heat treatment, grinding process, and inspection notes.'],
+        ['block', 'Counterbored mounting block', 'Generate an industrial rectangular mounting block, length 90mm, width 54mm, height 22mm. Add four M6 counterbored mounting holes at the corners, hole diameter 6.6mm, counterbore diameter 11mm, depth 5mm, spacing 68mm x 34mm. Add one central 20mm locating through hole and two 5mm dowel pin holes. Material 6061-T6 aluminum, anodized. Include chamfers, tolerances, position tolerance, and inspection notes.']
+      ]
+    };
+
+    let lang = localStorage.getItem('gencad_lang') || 'zh';
+    let theme = localStorage.getItem('gencad_theme') || 'day';
+    const $ = (id) => document.getElementById(id);
+    const status = $('status');
+    const prompt = $('prompt');
+    const config = $('config');
+    const jsonHighlight = $('jsonHighlight');
+    const downloads = $('downloads');
+    const source = $('source');
+    const logEl = $('log');
+    const progressBar = $('progressBar');
+    const viewerHint = $('viewerHint');
+    const previewImage = $('previewImage');
+    const providerText = $('providerText');
+    const providerDot = $('providerDot');
+    const healthText = $('healthText');
+    const healthDot = $('healthDot');
+    const buttons = ['generateBtn', 'buildBtn', 'formatBtn', 'sampleBtn', 'refreshBtn'].map($);
+    let progressTimer = null;
+
+    function t(key) { return i18n[lang][key] || i18n.zh[key] || key; }
+    function currentSamples() { return samples[lang] || samples.zh; }
+
+    function applyTheme(next) {
+      theme = next;
+      localStorage.setItem('gencad_theme', theme);
+      document.body.dataset.theme = theme;
+      $('themeDay').classList.toggle('active', theme === 'day');
+      $('themeNight').classList.toggle('active', theme === 'night');
+      window.setViewerTheme?.(theme);
+    }
+
+    function populateSamples() {
+      const previous = $('sampleSelect').value;
+      $('sampleSelect').innerHTML = '';
+      currentSamples().forEach(([id, label]) => {
+        const option = document.createElement('option');
+        option.value = id;
+        option.textContent = label;
+        $('sampleSelect').appendChild(option);
+      });
+      $('sampleSelect').value = currentSamples().some(([id]) => id === previous) ? previous : currentSamples()[0][0];
+    }
+
+    function selectedPrompt() {
+      const id = $('sampleSelect').value;
+      return (currentSamples().find((item) => item[0] === id) || currentSamples()[0])[2];
+    }
+
+    function applyLang(next) {
+      lang = next;
+      localStorage.setItem('gencad_lang', lang);
+      document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+      document.querySelectorAll('[data-i18n]').forEach((el) => { el.textContent = t(el.dataset.i18n); });
+      $('langZh').classList.toggle('active', lang === 'zh');
+      $('langEn').classList.toggle('active', lang === 'en');
+      populateSamples();
+      if (!prompt.value.trim()) prompt.value = selectedPrompt();
+      status.textContent = t('ready');
+      healthText.textContent = t('checking');
+      buttons.forEach((b) => {
+        b.dataset.label = b.textContent;
+        b.dataset.busy = b.id === 'generateBtn' ? t('generating') : b.id === 'buildBtn' ? t('building') : 'Working...';
+      });
+    }
+
+    function escapeHtml(text) {
+      return text.replace(/[&<>"']/g, (ch) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[ch]));
+    }
+
+    function highlightJson(text) {
+      if (!text.trim()) return '';
+      const escaped = escapeHtml(text);
+      return escaped.replace(/("(?:\\.|[^"\\])*"\s*:)|("(?:\\.|[^"\\])*")|\b(true|false|null)\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/g, (match, key, str, literal) => {
+        if (key) return `<span class="json-key">${key}</span>`;
+        if (str) return `<span class="json-string">${str}</span>`;
+        if (literal) return `<span class="json-literal">${literal}</span>`;
+        return `<span class="json-number">${match}</span>`;
+      });
+    }
+
+    function syncJsonHighlight() {
+      jsonHighlight.innerHTML = highlightJson(config.value);
+      jsonHighlight.scrollTop = config.scrollTop;
+      jsonHighlight.scrollLeft = config.scrollLeft;
+    }
+
+    function setConfigText(text) {
+      config.value = text;
+      syncJsonHighlight();
+    }
+
+    function log(msg) {
+      const stamp = new Date().toLocaleTimeString();
+      logEl.textContent = `[${stamp}] ${msg}\n` + logEl.textContent;
+    }
+
+    function setProgress(value) { progressBar.style.width = `${Math.max(0, Math.min(100, value))}%`; }
+    function startProgress(msg) {
+      let value = 8;
+      setProgress(value);
+      clearInterval(progressTimer);
+      progressTimer = setInterval(() => {
+        value = Math.min(88, value + Math.max(1, (90 - value) * 0.08));
+        setProgress(value);
+      }, 500);
+      log(msg);
+    }
+    function finishProgress(ok, msg) {
+      clearInterval(progressTimer);
+      setProgress(ok ? 100 : 0);
+      setTimeout(() => setProgress(0), 900);
+      log(msg);
+    }
+    function setBusy(on, msg, activeButton) {
+      buttons.forEach((b) => b.disabled = on);
+      if (activeButton) activeButton.textContent = on ? activeButton.dataset.busy : activeButton.dataset.label;
+      status.textContent = msg || t('ready');
+      status.className = msg && msg.startsWith('Error') ? 'status error' : 'status';
+    }
+    function setProvider(sourceName, ok = true) {
+      providerText.textContent = sourceName || 'Provider';
+      providerDot.className = `dot ${ok ? 'ok' : 'err'}`;
+    }
+    async function fetchJson(url, options = {}, timeoutMs = 120000) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const res = await fetch(url, {...options, signal: controller.signal});
+        const text = await res.text();
+        let data = {};
+        try { data = text ? JSON.parse(text) : {}; } catch { data = {detail: text}; }
+        if (!res.ok) {
+          const detail = typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail || {});
+          throw new Error(`${res.status} ${res.statusText}${detail ? ` - ${detail}` : ''}`);
+        }
+        return data;
+      } catch (err) {
+        if (err.name === 'AbortError') throw new Error(`Request timed out after ${Math.round(timeoutMs / 1000)}s`);
+        throw err;
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+    function addDownload(label, url) {
+      const a = document.createElement('a');
+      a.className = 'button';
+      a.href = url;
+      a.textContent = label;
+      a.download = '';
+      downloads.appendChild(a);
+    }
+    function showDownloads(data) {
+      downloads.innerHTML = '';
+      addDownload(t('downloadStl'), data.stl_url);
+      addDownload(t('downloadJson'), data.config_url);
+      const loadButton = document.createElement('button');
+      loadButton.textContent = t('loadStl');
+      loadButton.onclick = () => {
+        if (window.loadStl) {
+          viewerHint.textContent = 'Loading final STL mesh...';
+          window.loadStl(data.stl_url);
+        }
+      };
+      downloads.appendChild(loadButton);
+      const span = document.createElement('span');
+      span.className = 'meta';
+      span.textContent = data.summary.parts.map((p) => `${p.name}:${p.kind}`).join('  ');
+      downloads.appendChild(span);
+    }
+
+    $('langZh').onclick = () => applyLang('zh');
+    $('langEn').onclick = () => applyLang('en');
+    $('themeDay').onclick = () => applyTheme('day');
+    $('themeNight').onclick = () => applyTheme('night');
+    $('sampleBtn').onclick = () => { prompt.value = selectedPrompt(); log('Loaded sample prompt.'); };
+    config.addEventListener('input', syncJsonHighlight);
+    config.addEventListener('scroll', syncJsonHighlight);
+    $('formatBtn').onclick = () => {
+      try {
+        const spec = JSON.parse(config.value);
+        setConfigText(JSON.stringify(spec, null, 2));
+        if (window.renderSpec) window.renderSpec(spec);
+        log('Formatted JSON configuration.');
+      } catch (err) {
+        status.textContent = `Error: invalid JSON - ${err.message}`;
+        status.className = 'status error';
+        log(`Invalid JSON: ${err.message}`);
+      }
+    };
+    $('generateBtn').onclick = async () => {
+      setProvider('Working', true);
+      setBusy(true, t('generating'), $('generateBtn'));
+      startProgress('Sending prompt to configuration generator.');
+      try {
+        const data = await fetchJson('/api/generate-config', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({prompt: prompt.value, use_gemini: $('useGemini').checked})
+        }, $('useGemini').checked ? 180000 : 30000);
+        setConfigText(JSON.stringify(data.spec, null, 2));
+        source.textContent = `Source: ${data.source}`;
+        setProvider(data.source, !data.source.startsWith('fallback'));
+        if (window.renderSpec) window.renderSpec(data.spec);
+        setBusy(false, t('generated'), $('generateBtn'));
+        finishProgress(true, `Configuration ready from ${data.source}.`);
+      } catch (err) {
+        setProvider('Failed', false);
+        setBusy(false, `Error: ${err.message}`, $('generateBtn'));
+        finishProgress(false, `Generation failed: ${err.message}`);
+      }
+    };
+    $('buildBtn').onclick = async () => {
+      setBusy(true, t('building'), $('buildBtn'));
+      startProgress('Validating configuration and exporting STL.');
+      try {
+        if (!config.value.trim()) throw new Error('Generate or paste a CAD JSON configuration first.');
+        const spec = JSON.parse(config.value);
+        const data = await fetchJson('/api/build', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({spec})
+        }, 180000);
+        showDownloads(data);
+        if (window.renderSpec) window.renderSpec(spec);
+        setBusy(false, t('built'), $('buildBtn'));
+        finishProgress(true, `Built ${data.summary.stl}.`);
+      } catch (err) {
+        setBusy(false, `Error: ${err.message}`, $('buildBtn'));
+        finishProgress(false, `Build failed: ${err.message}`);
+      }
+    };
+    $('refreshBtn').onclick = async () => {
+      setBusy(true, 'Refreshing files...', $('refreshBtn'));
+      startProgress('Loading generated file list.');
+      try {
+        const data = await fetchJson('/api/files', {}, 20000);
+        downloads.innerHTML = '';
+        data.files.slice(0, 8).forEach((f) => addDownload(f.name, f.url));
+        setBusy(false, 'Files refreshed', $('refreshBtn'));
+        finishProgress(true, `Loaded ${data.files.length} generated files.`);
+      } catch (err) {
+        setBusy(false, `Error: ${err.message}`, $('refreshBtn'));
+        finishProgress(false, `Refresh failed: ${err.message}`);
+      }
+    };
+    async function checkHealth() {
+      try {
+        await fetchJson('/api/health', {}, 8000);
+        healthDot.className = 'dot ok';
+        healthText.textContent = t('online');
+      } catch {
+        healthDot.className = 'dot err';
+        healthText.textContent = t('offline');
+      }
+    }
+    window.addEventListener('error', (event) => log(`Browser error: ${event.message}`));
+    window.addEventListener('unhandledrejection', (event) => log(`Async error: ${event.reason}`));
+    window.$ = $;
+    window.appLog = log;
+    window.viewerHint = viewerHint;
+    window.previewImage = previewImage;
+    applyLang(lang);
+    applyTheme(theme);
+    prompt.value = selectedPrompt();
+    setConfigText('');
+    checkHealth();
+    log('Controls initialized.');
+  </script>
+
+  <script type="importmap">
+    {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js"}}
+  </script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/controls/OrbitControls.js';
+    import { STLLoader } from 'https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/loaders/STLLoader.js';
+    const $ = window.$;
+    const log = window.appLog;
+    const viewerHint = window.viewerHint;
+    const previewImage = window.previewImage;
+    const canvas = $('viewer');
+    const renderer = new THREE.WebGLRenderer({canvas, antialias: true});
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 5000);
+    camera.position.set(160, -190, 130);
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    const hemi = new THREE.HemisphereLight(0xffffff, 0x8a95a5, 2.2);
+    scene.add(hemi);
+    const dir = new THREE.DirectionalLight(0xffffff, 2.0);
+    dir.position.set(90, -120, 160);
+    scene.add(dir);
+    const grid = new THREE.GridHelper(280, 28, 0x9aa6b2, 0xd1d7df);
+    grid.rotation.x = Math.PI / 2;
+    scene.add(grid);
+    let mesh = null;
+    let modelGroup = null;
+
+    function setViewerTheme(theme) {
+      scene.background = new THREE.Color(theme === 'night' ? 0x111927 : 0xf4f6f8);
+      const gridMaterials = Array.isArray(grid.material) ? grid.material : [grid.material];
+      gridMaterials.forEach((material) => {
+        material.color.set(theme === 'night' ? 0x566477 : 0x9aa6b2);
+        material.opacity = theme === 'night' ? 0.34 : 0.46;
+        material.transparent = true;
+      });
+      hemi.intensity = theme === 'night' ? 1.8 : 2.2;
+      dir.intensity = theme === 'night' ? 1.6 : 2.0;
+    }
+    window.setViewerTheme = setViewerTheme;
+    setViewerTheme(document.body.dataset.theme || 'day');
+
+    function fitRenderer() {
+      const rect = canvas.getBoundingClientRect();
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(rect.width, rect.height, false);
+      camera.aspect = rect.width / rect.height;
+      camera.updateProjectionMatrix();
+    }
+    window.addEventListener('resize', fitRenderer);
+    function disposeObject(obj) {
+      obj.traverse((child) => {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) Array.isArray(child.material) ? child.material.forEach((m) => m.dispose()) : child.material.dispose();
+      });
+    }
+    function clearModel() {
+      if (mesh) { scene.remove(mesh); disposeObject(mesh); mesh = null; }
+      if (modelGroup) { scene.remove(modelGroup); disposeObject(modelGroup); modelGroup = null; }
+      previewImage.style.display = 'none';
+    }
+    function materialFor(part, index) {
+      const text = `${part.material || ''} ${part.name || ''}`.toLowerCase();
+      const color = text.includes('steel') || text.includes('aisi') || text.includes('cr') || text.includes('钢') ? 0xaeb7c1
+        : text.includes('aluminum') || text.includes('aluminium') || text.includes('铝') ? 0xc7d0d8
+        : text.includes('brass') || text.includes('铜') ? 0xc9a24d
+        : index % 2 ? 0x9fb8b6 : 0xb8c2cc;
+      return new THREE.MeshStandardMaterial({color, metalness: 0.28, roughness: 0.42});
+    }
+    const darkMat = new THREE.MeshStandardMaterial({color: 0x263241, metalness: 0.15, roughness: 0.55});
+    const cutMat = new THREE.MeshStandardMaterial({color: 0x1d2735, metalness: 0.1, roughness: 0.65});
+
+    function circlePath(x, y, radius) {
+      const path = new THREE.Path();
+      path.absarc(x, y, radius, 0, Math.PI * 2, true);
+      return path;
+    }
+    function makeExtrudedDisk(part) {
+      const outer = part.outer_diameter_mm || 80;
+      const inner = part.inner_diameter_mm || 0;
+      const thickness = part.thickness_mm || part.length_mm || 12;
+      const shape = new THREE.Shape();
+      shape.absarc(0, 0, outer / 2, 0, Math.PI * 2, false);
+      if (inner > 0) shape.holes.push(circlePath(0, 0, inner / 2));
+      for (const pattern of part.holes || []) {
+        const count = pattern.count || 0;
+        const radius = (pattern.bolt_circle_diameter_mm || 0) / 2;
+        const holeRadius = Math.max((pattern.diameter_mm || 0) / 2, 1.5);
+        if (count === 1 && radius === 0) shape.holes.push(circlePath(0, 0, holeRadius));
+        for (let i = 0; i < count && radius > 0; i += 1) {
+          const a = Math.PI * 2 * i / count;
+          shape.holes.push(circlePath(radius * Math.cos(a), radius * Math.sin(a), holeRadius));
+        }
+      }
+      const geometry = new THREE.ExtrudeGeometry(shape, {depth: thickness, bevelEnabled: false, curveSegments: 72, steps: 1});
+      geometry.computeVertexNormals();
+      return geometry;
+    }
+    function box(w, l, h, mat, x = 0, y = 0, z = 0) {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(w, l, h), mat);
+      m.position.set(x, y, z + h / 2);
+      return m;
+    }
+    function trapezoidPrism(bottomW, topW, length, height, mat, z) {
+      const shape = new THREE.Shape();
+      shape.moveTo(-bottomW / 2, 0);
+      shape.lineTo(bottomW / 2, 0);
+      shape.lineTo(topW / 2, height);
+      shape.lineTo(-topW / 2, height);
+      shape.closePath();
+      const geo = new THREE.ExtrudeGeometry(shape, {depth: length, bevelEnabled: false, steps: 1});
+      geo.center();
+      geo.computeVertexNormals();
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.rotation.x = Math.PI / 2;
+      mesh.position.z = z + height / 2;
+      return mesh;
+    }
+    function addHoleMarkers(group, part, width, length, z) {
+      for (const pattern of part.holes || []) {
+        const count = pattern.count || 1;
+        const radius = Math.max((pattern.diameter_mm || 6) / 2, 1.5);
+        const bcd = pattern.bolt_circle_diameter_mm || 0;
+        const positions = [];
+        if (count === 4) {
+          positions.push([-width * .32, -length * .32], [width * .32, -length * .32], [-width * .32, length * .32], [width * .32, length * .32]);
+        } else if (bcd > 0) {
+          for (let i = 0; i < count; i += 1) {
+            const a = Math.PI * 2 * i / count;
+            positions.push([Math.cos(a) * bcd / 2, Math.sin(a) * bcd / 2]);
+          }
+        } else {
+          positions.push([0, 0]);
+        }
+        positions.forEach(([x, y]) => {
+          const hole = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, 0.9, 36), cutMat);
+          hole.rotation.x = Math.PI / 2;
+          hole.position.set(x, y, z + 0.48);
+          group.add(hole);
+          if (pattern.counterbore_diameter_mm) {
+            const cb = new THREE.Mesh(new THREE.CylinderGeometry(pattern.counterbore_diameter_mm / 2, pattern.counterbore_diameter_mm / 2, 0.7, 36), darkMat);
+            cb.rotation.x = Math.PI / 2;
+            cb.position.set(x, y, z + 0.95);
+            group.add(cb);
+          }
+        });
+      }
+    }
+    function addSlotMarker(group, width, length, z) {
+      const slot = box(Math.min(width * .28, 18), Math.min(length * .58, 78), 0.9, cutMat, 0, 0, z);
+      group.add(slot);
+      const r = Math.min(width * .14, 9);
+      [-1, 1].forEach((side) => {
+        const cap = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.95, 36), cutMat);
+        cap.position.set(0, side * Math.min(length * .29, 39), z + 0.5);
+        group.add(cap);
+      });
+    }
+    function buildBracket(part, index) {
+      const fingerprint = JSON.stringify(part).toLowerCase();
+      const width = part.width_mm || 80;
+      const length = part.length_mm || 90;
+      const height = part.height_mm || 24;
+      const mat = materialFor(part, index);
+      const group = new THREE.Group();
+      if (fingerprint.includes('t-slot') || fingerprint.includes('t_slot') || fingerprint.includes('t 型') || fingerprint.includes('滑块螺母')) {
+        group.add(box(width, length, height * .56, mat, 0, 0, 0));
+        group.add(box(width * .58, length, height * .44, mat, 0, 0, height * .56));
+        addSlotMarker(group, width * .58, length, height + .2);
+      } else {
+        group.add(box(width, length, height, mat, 0, 0, 0));
+        if (fingerprint.includes('dove') || fingerprint.includes('燕尾')) {
+          group.add(trapezoidPrism(width * .60, width * .40, length * .96, Math.max(height * .42, 8), mat, height));
+        } else if (fingerprint.includes('step') || fingerprint.includes('台阶')) {
+          group.add(box(width * .62, length * .86, height * .35, mat, 0, 0, height));
+        }
+      }
+      if (fingerprint.includes('slot') || fingerprint.includes('槽') || fingerprint.includes('lightening')) addSlotMarker(group, width, length, height + .2);
+      addHoleMarkers(group, part, width, length, height + .25);
+      return group;
+    }
+    function buildPartMesh(part, index) {
+      const kind = part.kind || 'flange';
+      const pos = part.position_mm || [0, 0, 0];
+      const group = new THREE.Group();
+      const mat = materialFor(part, index);
+      if (kind === 'shaft') {
+        const diameter = part.outer_diameter_mm || 30;
+        const length = part.length_mm || 60;
+        const geo = new THREE.CylinderGeometry(diameter / 2, diameter / 2, length, 72, 1, false);
+        const body = new THREE.Mesh(geo, mat);
+        body.rotation.x = Math.PI / 2;
+        body.position.z = length / 2;
+        group.add(body);
+      } else if (kind === 'bracket') {
+        group.add(buildBracket(part, index));
+      } else {
+        const body = new THREE.Mesh(makeExtrudedDisk(part), mat);
+        group.add(body);
+      }
+      group.position.set(pos[0] || 0, pos[1] || 0, pos[2] || 0);
+      return group;
+    }
+    function fitCameraToObject(object) {
+      const box3 = new THREE.Box3().setFromObject(object);
+      const center = new THREE.Vector3();
+      const size = new THREE.Vector3();
+      box3.getCenter(center);
+      box3.getSize(size);
+      const maxDim = Math.max(size.x, size.y, size.z, 1);
+      camera.position.set(center.x + maxDim * 1.45, center.y - maxDim * 1.8, center.z + maxDim * 1.1);
+      controls.target.copy(center);
+      camera.near = Math.max(maxDim / 1000, 0.1);
+      camera.far = maxDim * 20;
+      camera.updateProjectionMatrix();
+      controls.update();
+    }
+    window.renderSpec = function renderSpec(spec) {
+      clearModel();
+      modelGroup = new THREE.Group();
+      (spec.parts || []).forEach((part, index) => modelGroup.add(buildPartMesh(part, index)));
+      scene.add(modelGroup);
+      fitCameraToObject(modelGroup);
+      viewerHint.textContent = '';
+      log(`Parametric preview rendered from ${spec.parts?.length || 0} part(s).`);
+    };
+    window.loadStl = function loadStl(url) {
+      new STLLoader().load(url, (geometry) => {
+        clearModel();
+        geometry.computeVertexNormals();
+        mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({color: 0xb8c2cc, metalness: 0.25, roughness: 0.42}));
+        geometry.computeBoundingBox();
+        const center = new THREE.Vector3();
+        geometry.boundingBox.getCenter(center);
+        mesh.position.sub(center);
+        scene.add(mesh);
+        fitCameraToObject(mesh);
+        log('Final STL mesh loaded.');
+      }, undefined, (err) => log(`STL preview failed: ${err.message || err}`));
+    };
+    function animate() {
+      fitRenderer();
+      controls.update();
+      renderer.render(scene, camera);
+      requestAnimationFrame(animate);
+    }
+    animate();
+    log('3D preview initialized.');
+  </script>
+</body>
+</html>
