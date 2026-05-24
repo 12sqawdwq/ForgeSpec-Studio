@@ -34,3 +34,16 @@ def test_build_returns_python_source_url():
     assert response.status_code == 200
     data = response.json()
     assert data["source_url"].endswith(".py")
+    assert data["manifest_url"].endswith("manifest.json")
+    assert data["assurance_report_url"].endswith("assurance_report.json")
+
+
+def test_validate_source_rejects_banned_code():
+    response = client.post(
+        "/api/validate-source",
+        json={"source": "import os\ndef build_model():\n    return None\n", "prompt": "bad"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert not data["ok"]
+    assert "banned_import:os" in data["errors"]

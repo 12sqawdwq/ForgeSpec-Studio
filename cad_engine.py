@@ -3,18 +3,23 @@ from __future__ import annotations
 import json
 import math
 import re
+import subprocess
+import sys
 import uuid
 from pathlib import Path
 
 import cadquery as cq
 
+from assurance import write_assurance_files
 from schemas import AssemblySpec, PartSpec
 from cad_source import render_cadquery_source
 from preview import render_stl_svg
+from source_security import validate_cad_source
 from validation import validate_export
 
 
 OUTPUT_DIR = Path("outputs")
+SOURCE_BUILD_TIMEOUT_SECONDS = 90
 
 
 def slugify(value: str) -> str:
@@ -139,15 +144,27 @@ def build_part(part: PartSpec) -> cq.Workplane:
     return obj.translate((x, y, z))
 
 
+def _job_dir(job_id: str) -> Path:
+    path = OUTPUT_DIR / job_id
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def _url(path: Path) -> str:
+    return f"/outputs/{path.relative_to(OUTPUT_DIR).as_posix()}"
+
+
 def build_assembly(spec: AssemblySpec) -> tuple[Path, Path, dict]:
     OUTPUT_DIR.mkdir(exist_ok=True)
     run_id = uuid.uuid4().hex[:10]
-    base = f"{slugify(spec.project_name)}_{run_id}"
-    stl_path = OUTPUT_DIR / f"{base}.stl"
-    step_path = OUTPUT_DIR / f"{base}.step"
-    json_path = OUTPUT_DIR / f"{base}.json"
-    source_path = OUTPUT_DIR / f"{base}.py"
-    preview_path = OUTPUT_DIR / f"{base}.svg"
+    job_id = f"{slugify(spec.project_name)}_{run_id}"
+    job_dir = _job_dir(job_id)
+    base = slugify(spec.project_name)
+    stl_path = job_dir / f"{base}.stl"
+    step_path = job_dir / f"{base}.step"
+    json_path = job_dir / f"{base}.json"
+    source_path = job_dir / f"{base}.py"
+    preview_path = job_dir / f"{base}.svg"
 
     compound = None
     part_summaries = []
@@ -175,15 +192,101 @@ def build_assembly(spec: AssemblySpec) -> tuple[Path, Path, dict]:
     cq.exporters.export(compound, str(step_path))
     cq.exporters.export(compound, str(stl_path), tolerance=0.05, angularTolerance=0.1)
     render_stl_svg(stl_path, preview_path)
-    source_path.write_text(render_cadquery_source(spec), encoding="utf-8")
+    source_text = render_cadquery_source(spec)
+    security = validate_cad_source(source_text).model_dump()
+    if not security["ok"]:
+        raise ValueError(f"generated source failed security gate: {security['errors']}")
+    source_path.write_text(source_text, encoding="utf-8")
     json_path.write_text(json.dumps(spec.model_dump(), indent=2), encoding="utf-8")
     validation = validate_export(compound, spec, stl_path, json_path, step_path, source_path)
+    manifest_path, report_path = write_assurance_files(
+        job_dir,
+        job_id=job_id,
+        source_path=source_path,
+        prompt=spec.description,
+        validation=validation,
+        security=security,
+        artifacts={"stl": stl_path, "step": step_path, "config": json_path, "source": source_path, "preview": preview_path},
+        source_label="assembly_spec",
+    )
     return stl_path, json_path, {
+        "job_id": job_id,
         "parts": part_summaries,
-        "stl": stl_path.name,
-        "step": step_path.name,
-        "source": source_path.name,
-        "config": json_path.name,
-        "preview": preview_path.name,
+        "stl": stl_path.relative_to(OUTPUT_DIR).as_posix(),
+        "step": step_path.relative_to(OUTPUT_DIR).as_posix(),
+        "source": source_path.relative_to(OUTPUT_DIR).as_posix(),
+        "config": json_path.relative_to(OUTPUT_DIR).as_posix(),
+        "preview": preview_path.relative_to(OUTPUT_DIR).as_posix(),
+        "manifest": manifest_path.relative_to(OUTPUT_DIR).as_posix(),
+        "assurance_report": report_path.relative_to(OUTPUT_DIR).as_posix(),
+        "security": security,
         "validation": validation,
+    }
+
+
+def build_source_package(source: str, prompt: str | None = None) -> dict:
+    OUTPUT_DIR.mkdir(exist_ok=True)
+    security = validate_cad_source(source).model_dump()
+    if not security["ok"]:
+        raise ValueError(f"source failed security gate: {security['errors']}")
+
+    job_id = f"source_{uuid.uuid4().hex[:10]}"
+    job_dir = _job_dir(job_id)
+    source_path = job_dir / "source.py"
+    source_path.write_text(source, encoding="utf-8")
+
+    result = subprocess.run(
+        [sys.executable, str(source_path.name), "--out", "."],
+        cwd=job_dir,
+        capture_output=True,
+        text=True,
+        timeout=SOURCE_BUILD_TIMEOUT_SECONDS,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise ValueError(f"source build failed: {result.stderr[-1000:] or result.stdout[-1000:]}")
+
+    step_files = sorted(job_dir.glob("*.step"))
+    stl_files = sorted(job_dir.glob("*.stl"))
+    metadata_files = sorted(job_dir.glob("*.metadata.json"))
+    if not step_files or not stl_files:
+        raise ValueError("source build did not produce STEP and STL outputs")
+
+    preview_path = job_dir / "preview.svg"
+    render_stl_svg(stl_files[0], preview_path)
+    validation = {
+        "ok": True,
+        "warnings": [],
+        "source_exists": True,
+        "step_exists": True,
+        "stl_exists": True,
+        "json_exists": bool(metadata_files),
+    }
+    manifest_path, report_path = write_assurance_files(
+        job_dir,
+        job_id=job_id,
+        source_path=source_path,
+        prompt=prompt,
+        validation=validation,
+        security=security,
+        artifacts={
+            "source": source_path,
+            "step": step_files[0],
+            "stl": stl_files[0],
+            "metadata": metadata_files[0] if metadata_files else source_path,
+            "preview": preview_path,
+        },
+        source_label="source_package",
+    )
+    return {
+        "ok": True,
+        "job_id": job_id,
+        "source_url": _url(source_path),
+        "step_url": _url(step_files[0]),
+        "stl_url": _url(stl_files[0]),
+        "config_url": _url(metadata_files[0]) if metadata_files else None,
+        "preview_url": _url(preview_path),
+        "manifest_url": _url(manifest_path),
+        "assurance_report_url": _url(report_path),
+        "summary": {"job_id": job_id, "security": security, "validation": validation},
     }

@@ -160,3 +160,8 @@ class GenerateRequest(BaseModel):
 
 class BuildRequest(BaseModel):
     spec: AssemblySpec
+
+
+class SourceBuildRequest(BaseModel):
+    source: str
+    prompt: str | None = None

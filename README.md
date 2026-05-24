@@ -1,8 +1,8 @@
 # ForgeSpec Studio
 
-ForgeSpec Studio turns natural-language engineering requirements into a
-parametric CAD JSON configuration, renders an instant browser preview, and
-exports STL/JSON files from a Python CAD backend.
+ForgeSpec Studio turns natural-language engineering requirements into
+source-first parametric CAD packages, renders an instant browser preview, and
+exports STEP/STL/Python/metadata files from a Python CAD backend.
 
 It is designed for industrial standard parts such as flanges, shafts,
 mounting blocks, T-slot nuts, dowel pins, and simple precision assemblies.
@@ -11,12 +11,14 @@ mounting blocks, T-slot nuts, dowel pins, and simple precision assemblies.
 
 - FastAPI backend with a browser-based interactive UI.
 - Conda-managed Python environment.
-- CadQuery STEP/STL export.
+- CadQuery STEP/STL export with runnable Python source snapshots.
 - Brief -> intent -> planner -> deterministic AssemblySpec pipeline.
 - Standards-backed part expansion for common fasteners.
 - Zhipu/BigModel and Gemini API support, with deterministic fallback templates.
 - Day/night UI themes, Chinese/English interface, sample prompts, JSON
-  highlighting, progress logs, and one-click STL/JSON downloads.
+  highlighting, progress logs, and one-click STEP/STL/Python/JSON downloads.
+- Job-scoped outputs with manifest and assurance report artifacts.
+- AST-based Python CAD source security checks for source-build workflows.
 
 ## Standards Library
 
@@ -108,7 +110,17 @@ front of the service and forward traffic to the configured `PORT`.
 - `POST /api/build`
 - `GET /api/files`
 
-`/api/build` returns STL, STEP, JSON, preview SVG, and a validation summary.
+`/api/build` returns STL, STEP, Python source, JSON, preview SVG, manifest,
+assurance report, and validation/security summaries.
+
+Additional source-first endpoints:
+
+- `POST /api/validate-source`
+- `POST /api/build-source`
+- `GET /api/jobs/{job_id}/assurance-report`
+
+ForgeSpec Studio is a design-assist tool. Generated artifacts require
+engineering review before manufacturing or operational use.
 
 ## License
 
